@@ -30,6 +30,7 @@ export const icons = {
   check: wrap('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
   ccw: wrap('<path d="M18.5 9A7.5 7.5 0 1 0 19.5 13"/><path d="M19 3.5V9h-5.5"/>'),
   cw: wrap('<path d="M5.5 9A7.5 7.5 0 1 1 4.5 13"/><path d="M5 3.5V9h5.5"/>'),
+  sliders: wrap('<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.3"/><circle cx="9" cy="17" r="2.3"/>'),
   expand: wrap('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
 };
 

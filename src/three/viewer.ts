@@ -122,6 +122,12 @@ export class Viewer {
 
   /** Adds a grid floor and a shadow catcher at height y. */
   setFloor(y: number, size: number, center: Vec3 = [0, 0, 0]): void {
+    const old = this.scene.getObjectByName('floor-shadow') as THREE.Mesh | undefined;
+    if (old) {
+      this.scene.remove(old);
+      old.geometry.dispose();
+      (old.material as THREE.Material).dispose();
+    }
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(size, size),
       new THREE.ShadowMaterial({ opacity: 0.28 }),
@@ -183,10 +189,20 @@ export class Viewer {
 
   /** Camera distance so that a sphere of `radius` fits the current viewport. */
   fitDistance(radius: number): number {
-    const vFov = THREE.MathUtils.degToRad(this.camera.fov);
-    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect);
-    const fov = Math.min(vFov, hFov);
-    return (radius / Math.sin(fov / 2)) * 1.02;
+    // camera.fov spans the full (possibly offset) frame; only the part between the insets is free.
+    const view = this.camera.view;
+    const fullH = view?.enabled ? view.fullHeight : Math.max(1, this.host.clientHeight);
+    const fullW = view?.enabled ? view.fullWidth : Math.max(1, this.host.clientWidth);
+    const visibleH = Math.max(80, this.host.clientHeight - this.insetTop - this.insetBottom);
+    const t = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    const half = Math.min(Math.atan((t * visibleH) / fullH), Math.atan((t * fullW) / fullH));
+    return (radius / Math.sin(half)) * 1.02;
+  }
+
+  /** Current viewing direction (from the orbit target to the camera). */
+  viewDirection(): Vec3 {
+    const d = this.camera.position.clone().sub(this.controls.target).normalize();
+    return [d.x, d.y, d.z];
   }
 
   viewFrom(dir: Vec3, target: Vec3, radius: number, animate = true): void {
@@ -275,7 +291,7 @@ export class Viewer {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     const shift = this.insetBottom - this.insetTop;
-    if (shift !== 0 && h > 2 * Math.abs(shift)) {
+    if (shift !== 0 && h - Math.abs(shift) > 60) {
       const fullH = h + Math.abs(shift);
       this.camera.aspect = w / fullH;
       // Render the lower part of a taller virtual frame: the optical centre moves up by shift/2.

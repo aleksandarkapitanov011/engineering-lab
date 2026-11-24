@@ -15,10 +15,9 @@ import {
   shapeFromPoints,
   steppedShaft,
 } from '../../three/geom';
+import type { Layout } from './layout';
 import {
-  A,
   ALPHA,
-  AXIS_Y,
   B1,
   B2,
   BACKLASH,
@@ -28,11 +27,8 @@ import {
   BRG2,
   BRG2A_Z,
   BRG2B_Z,
-  G1,
-  G2,
   KEY1,
   KEY2,
-  M,
   SHAFT1_KEYWAY,
   SHAFT1_OFFSET,
   SHAFT1_SEGMENTS,
@@ -42,8 +38,6 @@ import {
   WALL_A_Z,
   WALL_B_Z,
   WALL_T,
-  Z1,
-  Z2,
 } from './params';
 
 const PINION_COLOR = '#4d82b3';
@@ -69,65 +63,94 @@ function keyGeometry(shaftR: number, k: { b: number; h: number; t1: number; L: n
   return creased(g, 30);
 }
 
-function pinionGeometry(): THREE.BufferGeometry {
-  const shape = shapeFromPoints(gearOutline({ m: M, z: Z1, alphaDeg: ALPHA, backlash: BACKLASH, phase: 0 }));
-  shape.holes.push(keyedBorePath(10, KEY1.b, KEY1.t2));
+function pinionGeometry(L: Layout): THREE.BufferGeometry {
+  const { m, z1, x1 } = L.cfg;
+  const shape = shapeFromPoints(gearOutline({ m, z: z1, x: x1, alphaDeg: ALPHA, backlash: BACKLASH, phase: 0 }));
+  // An integral pinion (pinion shaft) has no bore: the teeth are cut directly on the shaft.
+  if (!L.integral1) shape.holes.push(keyedBorePath(10, KEY1.b, KEY1.t2));
   return creased(extrudeCentered(shape, B1, { bevel: 0.45, curveSegments: 40 }), 40);
 }
 
-function gearGeometry(): THREE.BufferGeometry {
-  const rimInner = 33;
-  const rim = shapeFromPoints(
-    gearOutline({ m: M, z: Z2, alphaDeg: ALPHA, backlash: BACKLASH, phase: matingPhase(Z2) }),
+function gearGeometry(L: Layout): THREE.BufferGeometry {
+  const { m, z2, x1 } = L.cfg;
+  const outline = shapeFromPoints(
+    gearOutline({ m, z: z2, x: -x1, alphaDeg: ALPHA, backlash: BACKLASH, phase: matingPhase(z2) }),
   );
+  const rimInner = L.g2.df / 2 - Math.max(2.5 * m, 3);
+  const hubR = 20;
+  if (rimInner - hubR < 8) {
+    // Too small for a web: a solid gear body with a bore (or none if integral).
+    if (!L.integral2) outline.holes.push(keyedBorePath(12.5, KEY2.b, KEY2.t2));
+    return creased(extrudeCentered(outline, B2, { bevel: 0.45, curveSegments: 48 }), 40);
+  }
+  const rim = outline;
   rim.holes.push(circlePath(rimInner));
   const rimGeo = extrudeCentered(rim, B2, { bevel: 0.45, curveSegments: 72 });
 
   const web = new THREE.Shape();
   web.absarc(0, 0, rimInner + 1, 0, Math.PI * 2, false);
-  web.holes.push(circlePath(19.5));
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
-    web.holes.push(circlePath(3.8, 26.5 * Math.cos(a), 26.5 * Math.sin(a)));
+  web.holes.push(circlePath(hubR - 0.5));
+  const span = rimInner - hubR;
+  if (span >= 12) {
+    // Lightening holes in the web.
+    const n = span > 40 ? 8 : 6;
+    const hr = Math.min(span / 2 - 2.5, 14);
+    const R = (rimInner + hubR) / 2;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.PI / n;
+      web.holes.push(circlePath(hr, R * Math.cos(a), R * Math.sin(a)));
+    }
   }
   const webGeo = extrudeCentered(web, 6, { bevel: 0.3, curveSegments: 40 });
 
   const hub = new THREE.Shape();
-  hub.absarc(0, 0, 20, 0, Math.PI * 2, false);
+  hub.absarc(0, 0, hubR, 0, Math.PI * 2, false);
   hub.holes.push(keyedBorePath(12.5, KEY2.b, KEY2.t2));
   const hubGeo = extrudeCentered(hub, B2, { bevel: 0.5, curveSegments: 48 });
 
   return creased(merge([rimGeo, webGeo, hubGeo]), 40);
 }
 
-function baseGroup(kit: { translucent: (c: string, o: number) => THREE.Material; darkSteel: () => THREE.Material }): THREE.Group {
+function baseGroup(
+  L: Layout,
+  kit: { translucent: (c: string, o: number) => THREE.Material; darkSteel: () => THREE.Material },
+): THREE.Group {
   const g = new THREE.Group();
+  const A = L.a;
+  const AXIS_Y = L.axisY;
+  const left = Math.max(45, L.g1.da / 2 + 12);
+  const right = Math.max(45, L.g2.da / 2 + 12);
   // Plate (in XZ), top face at y = 0.
-  const plateShape = roundedRect(150, 155, 8);
+  const plateW = A + left + right;
+  const plateShape = roundedRect(plateW, 155, 8);
   const plate = extrudeCentered(plateShape, 8, { bevel: 0.8, curveSegments: 6 });
   plate.rotateX(-Math.PI / 2);
-  plate.translate(A / 2, -4, -2.5);
+  plate.translate(-left + plateW / 2, -4, -2.5);
   g.add(new THREE.Mesh(plate, kit.translucent('#8796a6', 0.42)));
 
-  // Twin bearing supports with bores for the outer rings.
-  const s = new THREE.Shape();
-  s.moveTo(-30, 0);
-  s.lineTo(A + 30, 0);
-  s.lineTo(A + 30, AXIS_Y);
-  s.absarc(A, AXIS_Y, 30, 0, Math.PI, false);
-  s.absarc(0, AXIS_Y, 30, 0, Math.PI, false);
-  s.lineTo(-30, 0);
-  s.holes.push(circlePath(BRG1.D / 2 + 0.15, 0, AXIS_Y));
-  s.holes.push(circlePath(BRG2.D / 2 + 0.15, A, AXIS_Y));
+  // Bearing supports: one pillow per bearing, so they still build when the bearings clash.
+  const pillow = (cx: number, boreR: number): THREE.Shape => {
+    const s = new THREE.Shape();
+    s.moveTo(cx - 30, 0);
+    s.lineTo(cx + 30, 0);
+    s.lineTo(cx + 30, AXIS_Y);
+    s.absarc(cx, AXIS_Y, 30, 0, Math.PI, false);
+    s.lineTo(cx - 30, 0);
+    s.holes.push(circlePath(boreR + 0.15, cx, AXIS_Y));
+    return s;
+  };
+  const shapes = [pillow(0, BRG1.D / 2), pillow(A, BRG2.D / 2)];
   for (const z of [WALL_A_Z, WALL_B_Z]) {
-    const w = extrudeCentered(s, WALL_T, { bevel: 0.6, curveSegments: 40 });
-    w.translate(0, 0, z);
-    g.add(new THREE.Mesh(w, kit.translucent('#9fb3c8', 0.3)));
+    for (const s of shapes) {
+      const w = extrudeCentered(s, WALL_T, { bevel: 0.6, curveSegments: 40 });
+      w.translate(0, 0, z);
+      g.add(new THREE.Mesh(w, kit.translucent('#9fb3c8', 0.3)));
+    }
   }
   // Hex bolts fixing each support to the plate.
   const bolts: THREE.BufferGeometry[] = [];
   for (const z of [WALL_A_Z, WALL_B_Z]) {
-    for (const x of [-22, A / 2, A + 22]) {
+    for (const x of [-22, A + 22]) {
       const b = new THREE.CylinderGeometry(4.2, 4.2, 4, 6);
       b.translate(x, 2 + 0.01, z + WALL_T / 2 + 6);
       bolts.push(b);
@@ -140,13 +163,19 @@ function baseGroup(kit: { translucent: (c: string, o: number) => THREE.Material;
 
 const txt = (bg: string, en?: string) => ({ bg, en });
 
-export const parts: PartDef[] = [
+/** All parts for a given layout. Keys are left out where a gear is integral with its shaft. */
+export function makeParts(L: Layout): PartDef[] {
+  const { m, z1, z2, x1 } = L.cfg;
+  const n = (v: number): string => (Math.round(v * 100) / 100).toString().replace('.', ',');
+  const G1 = L.g1;
+  const G2 = L.g2;
+  const all: PartDef[] = [
   {
     id: 'base',
     fixed: true,
     position: [0, 0, 0],
     explode: { offset: [0, 0, 0], order: 0 },
-    build: ({ materials }) => baseGroup(materials),
+    build: ({ materials }) => baseGroup(L, materials),
     meta: {
       name: txt('Основа с лагерни опори', 'Base plate with bearing supports'),
       material: txt('Сив чугун EN-GJL-250 (показан полупрозрачен)', 'Grey cast iron EN-GJL-250'),
@@ -154,7 +183,7 @@ export const parts: PartDef[] = [
         'Носи лагерите и осигурява точното междуосие a = 60 mm и успоредността на двата вала. Грешка тук директно влошава зацепването.',
       ),
       dims: [
-        { label: txt('Междуосие'), value: '60 mm' },
+        { label: txt('Междуосие'), value: `${n(L.a)} mm` },
         { label: txt('Отвори за лагери'), value: 'ø42 H7 / ø47 H7' },
         { label: txt('Плоча'), value: '150 × 155 × 8 mm' },
       ],
@@ -204,17 +233,19 @@ export const parts: PartDef[] = [
     body: 's1',
     position: [0, 0, 0],
     explode: { offset: [0, 0, 40], order: 1 },
-    build: ({ materials }) => new THREE.Mesh(pinionGeometry(), materials.paint(PINION_COLOR, 0.55, 0.35)),
+    build: ({ materials }) => new THREE.Mesh(pinionGeometry(L), materials.paint(PINION_COLOR, 0.55, 0.35)),
     meta: {
-      name: txt('Зъбно колело z₁ = 20 (малко)', 'Pinion z1 = 20'),
+      name: txt(`Зъбно колело z₁ = ${z1} (малко)`, `Pinion z1 = ${z1}`),
       material: txt('Стомана 40Cr, повърхностно закалени зъби 48–52 HRC'),
       func: txt(
-        'Задвижващото колело. Зацепва се с колелото z₂ = 40, намалява оборотите два пъти и увеличава въртящия момент.',
+        L.integral1
+          ? 'Задвижващото колело. Венецът е твърде тънък за отвор с шпонка, затова е изработено заедно с вала (вал-зъбно колело).'
+          : `Задвижващото колело. Зацепва се с колелото z₂ = ${z2}, намалява оборотите ${n(z2 / z1)} пъти и увеличава въртящия момент.`,
       ),
       dims: [
-        { label: txt('Параметри'), value: 'm = 2 mm, z = 20, α = 20°' },
-        { label: txt('Диаметри'), value: `d = ${G1.d}, da = ${G1.da}, df = ${G1.df} mm` },
-        { label: txt('Ширина / отвор'), value: '20 mm / ø20 H7' },
+        { label: txt('Параметри'), value: `m = ${n(m)} mm, z = ${z1}, α = 20°, x = ${n(x1)}` },
+        { label: txt('Диаметри'), value: `d = ${n(G1.d)}, da = ${n(G1.da)}, df = ${n(G1.df)} mm` },
+        { label: txt('Ширина / отвор'), value: L.integral1 ? '20 mm / вал-зъбно колело' : '20 mm / ø20 H7' },
       ],
     },
   },
@@ -299,17 +330,17 @@ export const parts: PartDef[] = [
     body: 's2',
     position: [0, 0, 0],
     explode: { offset: [0, 0, 36], order: 1 },
-    build: ({ materials }) => new THREE.Mesh(gearGeometry(), materials.paint(GEAR_COLOR, 0.6, 0.38)),
+    build: ({ materials }) => new THREE.Mesh(gearGeometry(L), materials.paint(GEAR_COLOR, 0.6, 0.38)),
     meta: {
-      name: txt('Зъбно колело z₂ = 40 (голямо)', 'Gear z2 = 40'),
+      name: txt(`Зъбно колело z₂ = ${z2} (голямо)`, `Gear z2 = ${z2}`),
       material: txt('Стомана C45, подобрена 240–280 HB'),
       func: txt(
-        'Задвижваното колело. Върти се в обратна посока с n₂ = n₁/2. Дискът с олекотяващи отвори намалява масата и инерцията.',
+        `Задвижваното колело. Върти се в обратна посока с n₂ = n₁·${z1}/${z2}. Дискът с олекотяващи отвори намалява масата и инерцията.`,
       ),
       dims: [
-        { label: txt('Параметри'), value: 'm = 2 mm, z = 40, α = 20°' },
-        { label: txt('Диаметри'), value: `d = ${G2.d}, da = ${G2.da}, df = ${G2.df} mm` },
-        { label: txt('Ширина / отвор'), value: '18 mm / ø25 H7' },
+        { label: txt('Параметри'), value: `m = ${n(m)} mm, z = ${z2}, α = 20°, x = ${n(-x1)}` },
+        { label: txt('Диаметри'), value: `d = ${n(G2.d)}, da = ${n(G2.da)}, df = ${n(G2.df)} mm` },
+        { label: txt('Ширина / отвор'), value: L.integral2 ? '18 mm / вал-зъбно колело' : '18 mm / ø25 H7' },
       ],
     },
   },
@@ -350,3 +381,5 @@ export const parts: PartDef[] = [
     },
   },
 ];
+  return all.filter((p) => !(p.id === 'key1' && L.integral1) && !(p.id === 'key2' && L.integral2));
+}

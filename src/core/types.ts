@@ -158,8 +158,56 @@ export interface Readout {
   sign?(speeds: Map<string, number>): number;
 }
 
+/** A tunable design parameter in the parameter lab. */
+export interface LabParam {
+  id: string;
+  label: LText;
+  /** 'choice' picks from `options` (e.g. a standard series), 'range' is a slider. */
+  kind: 'range' | 'choice';
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: number[];
+  default: number;
+  format?(v: number): string;
+  hint?: LText;
+}
+
+export interface LabPreset {
+  label: LText;
+  values: Record<string, number>;
+}
+
+export interface LabValue {
+  label: LText;
+  value: string;
+}
+
+export interface LabWarning {
+  level: 'ok' | 'info' | 'warn' | 'error';
+  text: LText;
+}
+
+export interface LabResult {
+  values: LabValue[];
+  warnings: LabWarning[];
+  /** The mechanism regenerated for these parameters (shown in the Model tab). */
+  mechanism: Mechanism;
+}
+
+/** Optional "what if" lab: change design parameters and see the regenerated model and checks. */
+export interface LabDef {
+  title: LText;
+  intro: LText;
+  params: LabParam[];
+  presets: LabPreset[];
+  evaluate(values: Record<string, number>): LabResult;
+}
+
 export interface Mechanism {
   kind: 'mechanism';
+  /** Optional parameter lab for the Model tab. */
+  lab?: LabDef;
   id: string;
   title: LText;
   subtitle: LText;
