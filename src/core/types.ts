@@ -111,10 +111,27 @@ export interface IllustrationHandle {
   dispose(): void;
 }
 
+/** Handwritten extras rendered around a theory page in the notebook. */
+export interface TheoryAnnotations {
+  /** Caption under the taped-in figure, e.g. "фиг. 3 – ...". */
+  caption?: LText;
+  /** Short remark next to the formula with an arrow pointing at it. */
+  formulaNote?: LText;
+  /** Yellow sticky note with a tip. */
+  sticky?: LText;
+  /** Red-pen warning. */
+  warning?: LText;
+}
+
 export interface TheoryPage {
   id: string;
   title: LText;
+  /**
+   * 3–5 short sentences. Light notebook markup is supported:
+   * ==highlighter==, __red underline__, **ink bold**, ((circled)).
+   */
   sentences: LText[];
+  annotations?: TheoryAnnotations;
   /** Plain text / light HTML for one key formula. */
   formula: string;
   illustration(host: HTMLElement): IllustrationHandle;

@@ -81,6 +81,22 @@ const bg = {
   quizBest: 'Най-добър резултат',
   quizBackToTheory: 'Обратно към теорията',
 
+  nbNotes: 'ЗАПИСКИ',
+  nbSubject: 'по Машинни елементи',
+  nbOpenHint: 'плъзни, за да разлистиш',
+  nbContents: 'Съдържание',
+  nbLecture: 'Лекция',
+  nbRemember: 'Запомни!',
+  nbWarning: 'Внимание',
+  nbSelfCheck: 'Самопроверка',
+  nbCover: 'Корица',
+  nbPage: 'стр.',
+  nbGrade6: 'Отличен 6!',
+  nbGrade5: 'Много добър 5',
+  nbGrade4: 'Добър 4',
+  nbGrade3: 'Среден 3',
+  nbGrade2: 'Прочети пак записките :)',
+
   notFound: 'Механизмът не е намерен.',
   webglError: 'Устройството не поддържа WebGL, затова 3D моделът не може да се покаже.',
 };

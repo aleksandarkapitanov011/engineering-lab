@@ -12,7 +12,7 @@ all geometry is generated procedurally (no model files). UI language is Bulgaria
 | **Модел** | Animated 3D model, 0–3000 min⁻¹ input slider, live n₁ / n₂ / i readouts and rotation arrows, exploded view, section plane through the shaft axes, standard views, tap a part for its metadata. |
 | **Сглоби** | Assembly game: drag a part card onto the model (or tap card, then the target). Wrong order shakes the card and explains why. Timer, mistakes, 1–3 stars, best score in `localStorage`, rotating reward. |
 | **Чертеж** | Two A3 technical drawings at 2:1 (shaft 1 and the pinion) as SVG: ISO line types, dimensions with tolerances (k6, h9, H7, N9, JS9, h11), roughness Ra 0.8/1.6/3.2, section A–A, gear data table, title block. Pinch-zoom / pan; tap a dimension or symbol for an explanation. |
-| **Теория** | Six swipeable pages with animated SVG illustrations computed from the same involute math (line of action with live contact points, undercut traced by a rack cutter, etc.) and a 5-question quiz. |
+| **Теория** | A spiral notebook with a cover, contents and handwritten notes (highlighter, red underlines, sticky notes, arrows); pages turn like a real book. Six pages with animated SVG illustrations computed from the same involute math (line of action with live contact points, undercut traced by a rack cutter, etc.) and a 5-question quiz. |
 
 ## Requirements
 
@@ -125,6 +125,9 @@ interface in `src/core/types.ts`, so adding one never touches them.
    (`dim`, `roughness`, `leader`, `titleBlock`, …); pass `note: 'key'` and add `notes[key]` to make an element tappable.
 6. **Theory** (`theory.ts`): pages with `title`, 3–5 `sentences`, one `formula` and an
    `illustration(host)` that returns `{ start, stop, dispose }` (helpers in `src/ui/illus.ts`).
+   The booklet is rendered as a spiral notebook. Sentences support notebook markup:
+   `==highlighter==`, `__red underline__`, `**ink bold**`, `((red circle))`. Optional `annotations` add a figure
+   caption, a handwritten remark with an arrow next to the formula, a yellow sticky note and a red warning.
 7. **Quiz** (`quiz.ts`): `{ q, options, correct, explain }` (options are shuffled at runtime).
 8. **Export** the `Mechanism` from `index.ts` (also `camera` view directions, `section` plane, `maxInputRpm`,
    catalogue `thumbnail` SVG, optional `pro: true`).

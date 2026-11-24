@@ -1,0 +1,768 @@
+/* =========================================================================
+   Theory notebook: spiral-bound student notes with page-turn animation.
+   Paper is always light (like real paper), in both app themes.
+   ========================================================================= */
+
+.notebook-tab {
+  user-select: none;
+  -webkit-user-select: none;
+  --nb-paper: #fffdf6;
+  --nb-ink: #213b73;
+  --nb-ink-dark: #12245a;
+  --nb-pencil: #757d8c;
+  --nb-red: #d23b2c;
+  --nb-rule: #c9dcee;
+  --nb-margin: rgba(226, 110, 110, 0.6);
+  --nb-font: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+}
+
+.nb-desk {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px 10px 26px;
+  display: flex;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--surface-3) 45%, transparent), transparent 70%),
+    var(--bg);
+}
+
+.nb-book-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  height: 100%;
+}
+
+.nb-book {
+  position: absolute;
+  inset: 0;
+  perspective: 2400px;
+  outline: none;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: 4px 12px 12px 4px;
+  /* Thickness of the remaining pages + soft shadow on the desk. */
+  box-shadow:
+    3px 3px 0 -1px #f4efe2,
+    3px 3px 0 0 #cdc4b0,
+    6px 6px 0 -1px #f1ebdc,
+    6px 6px 0 0 #c4bba6,
+    9px 9px 0 -1px #eee7d6,
+    9px 9px 0 0 #bdb39c,
+    0 24px 44px rgba(0, 0, 0, 0.45);
+}
+
+/* Spiral rings over the left edge. */
+.nb-spiral {
+  position: absolute;
+  left: -16px;
+  top: 14px;
+  bottom: 14px;
+  width: 34px;
+  z-index: 50;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='30'%3E%3Cpath d='M27 15.5 C 10 18, 3 10, 10 5.5' fill='none' stroke='%23656d76' stroke-width='3.6' stroke-linecap='round'/%3E%3Cpath d='M26 14.6 C 11 16.6, 5 10, 10.5 6.4' fill='none' stroke='%23d6dce2' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E")
+    repeat-y 0 0 / 34px 30px;
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* ---------- Leaves & page turn ---------- */
+
+.nb-leaf {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+}
+
+.nb-leaf.gone {
+  visibility: hidden;
+}
+
+.nb-leaf.turning {
+  will-change: transform;
+}
+
+.nb-front,
+.nb-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 3px 12px 12px 3px;
+  overflow: hidden;
+}
+
+.nb-front {
+  background: var(--nb-paper);
+}
+
+/* Punched holes along the spine. */
+.nb-front::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  bottom: 14px;
+  width: 14px;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(circle at 7px 15.5px, #2a2d33 0 3.6px, rgba(0, 0, 0, 0.18) 4.4px, transparent 5px) repeat-y 0 0 / 14px 30px;
+}
+
+.nb-leaf.is-cover .nb-front::before {
+  background: radial-gradient(circle at 7px 15.5px, #0d1424 0 3.6px, transparent 4.4px) repeat-y 0 0 / 14px 30px;
+}
+
+.nb-back {
+  transform: rotateY(180deg);
+  background-color: #f6f1e4;
+  background-image: repeating-linear-gradient(to bottom, transparent 0 29px, rgba(150, 180, 210, 0.35) 29px 30px);
+  box-shadow: inset 18px 0 30px -18px rgba(0, 0, 0, 0.25);
+}
+
+.nb-back.cover {
+  background: #e6dfcf;
+}
+
+.nb-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: 3px 12px 12px 3px;
+  transform: translateZ(0.6px);
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.28), rgba(255, 255, 255, 0.18) 45%, rgba(0, 0, 0, 0.32));
+}
+
+.nb-under {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.12) 45%, transparent 75%);
+}
+
+/* ---------- Paper ---------- */
+
+.nb-paper {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 30px 18px 60px 58px;
+  font-family: var(--nb-font);
+  font-size: 23px;
+  line-height: 30px;
+  color: var(--nb-ink);
+  background-color: var(--nb-paper);
+  background-image:
+    linear-gradient(to right, transparent 46px, var(--nb-margin) 46px, var(--nb-margin) 47.5px, transparent 47.5px),
+    repeating-linear-gradient(to bottom, transparent 0 29px, var(--nb-rule) 29px 30px),
+    radial-gradient(ellipse at 70% 20%, rgba(255, 248, 225, 0.9), transparent 60%);
+  background-attachment: local;
+  scrollbar-width: thin;
+  /* Variables used by the SVG illustrations, mapped to "printed figure" colours. */
+  --text: #22314d;
+  --text-dim: #6b7383;
+  --surface: #ffffff;
+  --surface-2: #f1ede2;
+  --surface-3: #dcd5c5;
+  --line: #d9d2c2;
+  --accent: #e0533a;
+  --err: #d23b2c;
+  --ok: #2f9a58;
+}
+
+.nb-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  height: 30px;
+  font-size: 19px;
+  color: var(--nb-pencil);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nb-title {
+  position: relative;
+  margin: 0;
+  padding-top: 8px;
+  font-size: 37px;
+  line-height: 42px;
+  font-weight: 700;
+  color: var(--nb-ink-dark);
+}
+
+.nb-title-line {
+  display: block;
+  width: min(100%, 330px);
+  height: 13px;
+  margin-top: -4px;
+  color: var(--nb-red);
+}
+
+/* ---------- Taped-in figure (a printed card) ---------- */
+
+.nb-fig {
+  position: relative;
+  margin: 14px 4px 0 -6px;
+  padding: 8px 8px 2px;
+  background: #fff;
+  transform: rotate(-1.1deg);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.15),
+    0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.nb-fig .illus {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #fff;
+}
+
+.nb-fig .illus svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.nb-fig .illus text {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+.nb-fig figcaption {
+  font-size: 20px;
+  line-height: 26px;
+  padding: 2px 4px 4px;
+  color: #5a6170;
+  text-align: center;
+}
+
+.nb-tape {
+  position: absolute;
+  top: -11px;
+  width: 74px;
+  height: 22px;
+  background: rgba(238, 222, 168, 0.72);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  z-index: 2;
+}
+
+.nb-tape.left {
+  left: -16px;
+  transform: rotate(-33deg);
+}
+
+.nb-tape.right {
+  right: -16px;
+  transform: rotate(30deg);
+}
+
+/* ---------- Notes text ---------- */
+
+.nb-list {
+  list-style: none;
+  margin: 30px 0 0;
+  padding: 0;
+}
+
+.nb-list li {
+  position: relative;
+}
+
+.nb-list li::before {
+  content: '→';
+  position: absolute;
+  left: -36px;
+  color: var(--nb-red);
+  font-weight: 700;
+}
+
+.nb-hl {
+  color: inherit;
+  margin: 0 -0.08em;
+  padding: 0 0.16em;
+  border-radius: 0.8em 0.3em;
+  background:
+    linear-gradient(104deg, rgba(255, 229, 77, 0) 0.9%, rgba(255, 229, 77, 0.95) 2.4%, rgba(255, 222, 61, 0.65) 5.8%, rgba(255, 222, 61, 0.38) 93%, rgba(255, 222, 61, 0.78) 96%, rgba(255, 229, 77, 0) 98%),
+    linear-gradient(183deg, rgba(255, 229, 77, 0) 0%, rgba(255, 229, 77, 0.3) 7.9%, rgba(255, 229, 77, 0) 15%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.nb-ul {
+  padding-bottom: 3px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='6'%3E%3Cpath d='M0 3.5 Q 15 1.5 30 3.5 T 60 3.5' fill='none' stroke='%23d23b2c' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")
+    repeat-x 0 100% / 60px 6px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.nb-ink {
+  color: var(--nb-ink-dark);
+  font-weight: 700;
+}
+
+.nb-circ {
+  position: relative;
+  white-space: nowrap;
+  padding: 0 0.12em;
+}
+
+.nb-circ::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  right: -7px;
+  top: 0;
+  bottom: -1px;
+  border: 2px solid rgba(210, 59, 44, 0.85);
+  border-radius: 50% 42% 55% 45% / 58% 48% 52% 42%;
+  transform: rotate(-3deg);
+  pointer-events: none;
+}
+
+/* ---------- Formula box with a margin remark ---------- */
+
+.nb-formula-wrap {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.nb-formula {
+  display: inline-block;
+  max-width: 100%;
+  padding: 4px 16px;
+  white-space: nowrap;
+  font-size: clamp(21px, 6.2vw, 31px);
+  line-height: 42px;
+  font-weight: 700;
+  color: var(--nb-ink-dark);
+  border: 2.5px solid var(--nb-ink-dark);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  background: rgba(255, 229, 77, 0.28);
+  transform: rotate(-0.8deg);
+}
+
+.nb-formula sub {
+  font-size: 0.6em;
+}
+
+.nb-fnote {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  margin: -2px 0 0 16%;
+  color: var(--nb-red);
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 700;
+}
+
+.nb-arrow {
+  width: 56px;
+  height: 38px;
+  flex: none;
+  margin-bottom: 8px;
+}
+
+/* ---------- Sticky note & warning ---------- */
+
+.nb-sticky {
+  position: relative;
+  margin: 26px 2px 0 auto;
+  max-width: 270px;
+  padding: 20px 16px 14px;
+  font-size: 22px;
+  line-height: 27px;
+  color: #3d3513;
+  background: linear-gradient(170deg, #fff4ad, #ffe36e);
+  transform: rotate(1.8deg);
+  box-shadow:
+    0 12px 14px -9px rgba(0, 0, 0, 0.38),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.nb-sticky::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 66px;
+  height: 20px;
+  margin-left: -33px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transform: rotate(-3deg);
+}
+
+.nb-sticky-head {
+  font-weight: 700;
+  color: #c2410c;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.nb-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 22px;
+  color: var(--nb-red);
+  font-size: 24px;
+  line-height: 28px;
+  font-weight: 700;
+  transform: rotate(-1deg);
+}
+
+.nb-exclaim {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+
+.nb-pageno {
+  margin-top: 30px;
+  text-align: right;
+  color: var(--nb-pencil);
+  font-size: 22px;
+}
+
+.nb-doodle-corner {
+  margin: 20px 0 0 -10px;
+  color: #e0a21a;
+  transform: rotate(12deg);
+}
+
+.nb-star {
+  width: 54px;
+  height: 54px;
+}
+
+/* ---------- Cover ---------- */
+
+.nb-cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 30px 30px 30px 46px;
+  color: #fff;
+  font-family: var(--nb-font);
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.1), transparent 55%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 5px),
+    linear-gradient(160deg, #2b4772, #1b2d4d);
+}
+
+.nb-elastic {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 30px;
+  width: 11px;
+  background: linear-gradient(90deg, #111, #3b3b3b 50%, #111);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.nb-label {
+  width: min(86%, 340px);
+  padding: 14px 20px 16px;
+  text-align: center;
+  color: var(--nb-ink);
+  background-color: var(--nb-paper);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 33px, rgba(150, 180, 210, 0.45) 33px 34px);
+  border-radius: 8px;
+  transform: rotate(-1.6deg);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.nb-label-title {
+  font-size: clamp(34px, 11vw, 46px);
+  line-height: 52px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #c2410c;
+}
+
+.nb-label-line {
+  font-size: 22px;
+  line-height: 34px;
+}
+
+.nb-label-line.small {
+  font-size: 18px;
+  color: var(--nb-pencil);
+}
+
+.nb-label-topic {
+  font-size: 30px;
+  line-height: 34px;
+  font-weight: 700;
+  color: var(--nb-ink-dark);
+}
+
+.nb-cover-sticker {
+  width: 58%;
+  max-width: 250px;
+  padding: 16px 14px;
+  background: var(--nb-paper);
+  border-radius: 14px;
+  transform: rotate(5deg);
+  color: #213b73;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  --surface: #fffdf6;
+}
+
+.nb-cover-sticker svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.nb-cover-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffd76a;
+  white-space: nowrap;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.nb-cover-hint .nb-arrow {
+  width: 64px;
+  height: 34px;
+  margin: 0;
+}
+
+/* ---------- Contents ---------- */
+
+.nb-toc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: toc;
+}
+
+.nb-toc li {
+  counter-increment: toc;
+}
+
+.nb-toc-item {
+  width: 100%;
+  min-height: 60px;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 0 0 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  line-height: 30px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nb-toc-title {
+  min-width: 0;
+}
+
+.nb-toc-title::before {
+  content: counter(toc) '. ';
+  color: var(--nb-red);
+  font-weight: 700;
+}
+
+.nb-toc-dots {
+  flex: 1;
+  min-width: 16px;
+  margin-bottom: 9px;
+  border-bottom: 2.5px dotted #9aa6b8;
+}
+
+.nb-toc-num {
+  color: var(--nb-red);
+  font-weight: 700;
+}
+
+.nb-toc-item:active .nb-toc-title {
+  background: rgba(255, 229, 77, 0.5);
+}
+
+/* ---------- Self-check quiz ---------- */
+
+.nb-qnum {
+  color: var(--nb-pencil);
+  font-size: 20px;
+}
+
+.nb-q {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--nb-ink-dark);
+}
+
+.nb-opts {
+  display: flex;
+  flex-direction: column;
+}
+
+.nb-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  line-height: 30px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nb-box {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-top: 2px;
+  border: 2px solid var(--nb-ink);
+  border-radius: 3px 7px 4px 8px;
+  transform: rotate(-3deg);
+}
+
+.nb-box svg {
+  position: absolute;
+  left: -3px;
+  top: -12px;
+  width: 36px;
+  height: 36px;
+  color: var(--nb-ink);
+}
+
+.nb-opt.correct .nb-box svg,
+.nb-opt.wrong .nb-box svg {
+  color: var(--nb-red);
+}
+
+.nb-opt.correct .nb-opt-text {
+  background: rgba(120, 210, 120, 0.35);
+  border-radius: 0.6em 0.3em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.nb-opt.wrong .nb-opt-text {
+  text-decoration: line-through;
+  text-decoration-color: var(--nb-red);
+  text-decoration-thickness: 2px;
+}
+
+.nb-explain {
+  padding-left: 12px;
+  border-left: 3px solid var(--nb-red);
+  color: #4b5563;
+}
+
+.nb-explain strong {
+  color: var(--nb-red);
+}
+
+.nb-quiz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.nb-btn {
+  min-height: 44px;
+  padding: 0 22px;
+  font-family: var(--nb-font);
+  font-size: 25px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--nb-ink);
+  border: 0;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.nb-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.nb-btn.ghost {
+  color: var(--nb-ink);
+  background: transparent;
+  border: 2px solid var(--nb-ink);
+  box-shadow: none;
+}
+
+.nb-score {
+  position: relative;
+  width: 200px;
+  height: 104px;
+  margin: 14px auto 0;
+  display: grid;
+  place-items: center;
+  font-size: 58px;
+  font-weight: 700;
+  color: var(--nb-red);
+}
+
+.nb-circle {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--nb-red);
+}
+
+.nb-grade {
+  margin: 6px 0 4px;
+  text-align: center;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+  color: var(--nb-red);
+  transform: rotate(-3deg);
+}
+
+/* ---------- Bottom navigation ---------- */
+
+.nb-where {
+  font-family: var(--nb-font);
+  font-size: 25px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+@media (min-width: 700px) {
+  .nb-paper {
+    padding-left: 66px;
+    padding-right: 30px;
+  }
+}
