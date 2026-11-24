@@ -80,7 +80,7 @@ export function createCloseUp(L: Layout): CloseUpDef {
       ];
     },
     sound(n1) {
-      return { fundamental: meshFrequency(z1, n1), harmonics: [1, 0.42, 0.2, 0.08], modulation: n1 / 60 };
+      return { meshFrequency: meshFrequency(z1, n1), teeth: [z1, z2], contactRatio: L.eps, load: 0.6 };
     },
     createOverlay(): CloseUpOverlay {
       const group = new THREE.Group();

@@ -256,14 +256,16 @@ export interface CloseUpOverlay {
   dispose(): void;
 }
 
-/** Sound model for a running mechanism at a given input speed. */
+/** Physical description of a running gear mesh, used to synthesise its sound. */
 export interface MechanismSound {
-  /** Main tone, Hz (e.g. gear mesh frequency). */
-  fundamental: number;
-  /** Relative amplitudes of harmonics 1, 2, 3 … */
-  harmonics: number[];
-  /** Amplitude-modulation frequency, Hz (e.g. shaft rotation). */
-  modulation: number;
+  /** Tooth mesh frequency f = z₁·n₁/60, Hz. */
+  meshFrequency: number;
+  /** Tooth counts of the two meshing gears (errors repeat once per revolution of each). */
+  teeth: [number, number];
+  /** Transverse contact ratio: the fraction ε − 1 of each mesh cycle runs with two tooth pairs. */
+  contactRatio: number;
+  /** Relative load 0…1 (louder and harsher under load). */
+  load: number;
 }
 
 /** Optional close-up of the working zone (e.g. the gear mesh) with overlay and sound. */
