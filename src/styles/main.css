@@ -1565,12 +1565,3 @@ input[type='range'] {
   box-shadow: 0 0 0 3px var(--accent);
 }
 
-.cu-sound-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.cu-sound-row input[type='range'] {
-  flex: 1;
-}

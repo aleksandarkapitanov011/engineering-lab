@@ -1,6 +1,6 @@
 /**
  * Close-up of the gear mesh: base and pitch circles, line of action with the active path,
- * pitch point, pressure angle and live contact points synced with the 3D teeth. Plus the sound model.
+ * pitch point, pressure angle and live contact points synced with the 3D teeth.
  */
 import * as THREE from 'three';
 import type { CloseUpDef, CloseUpOverlay } from '../../core/types';
@@ -78,9 +78,6 @@ export function createCloseUp(L: Layout): CloseUpDef {
         { label: bg('Основна стъпка pb = π·m·cos α'), value: `${n(pb, 2)} mm` },
         { label: bg('Препокриване ε = gα / pb'), value: n(gAlpha / pb, 2) },
       ];
-    },
-    sound(n1) {
-      return { meshFrequency: meshFrequency(z1, n1), teeth: [z1, z2], contactRatio: L.eps, load: 0.6 };
     },
     createOverlay(): CloseUpOverlay {
       const group = new THREE.Group();

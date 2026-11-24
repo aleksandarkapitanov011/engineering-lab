@@ -14,7 +14,6 @@ import { ForceArrows } from '../three/forceArrows';
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
-import { GearSound, type SoundCharacter } from '../ui/gearSound';
 
 /** Extra slow motion in the close-up so the contact can be followed by eye. */
 const CLOSEUP_SLOWDOWN = 10;
@@ -254,59 +253,14 @@ function createForcesPanel(
   return { el, refresh };
 }
 
-/** Close-up panel: live contact count, facts and the sound switch. */
+/** Close-up panel: live contact count and facts. */
 function createCloseUpPanel(
   getDef: () => CloseUpDef | undefined,
   getRpm: () => number,
-  sound: GearSound,
-  onSoundChange: () => void,
 ): { el: HTMLElement; refresh(): void; setContacts(n: number): void } {
   const first = getDef()!;
   const pairs = h('div', { class: 'cu-pairs' }, h('span', { class: 'cu-pairs-n' }, '–'), h('span', null, t('cuPairs')));
   const factsEl = h('dl', { class: 'lab-values' });
-  const soundBtn = h('button', { class: 'btn cu-sound', 'aria-pressed': 'false' });
-  const volume = h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: 0.5, 'aria-label': t('cuVolume') }) as HTMLInputElement;
-  const paint = (): void => {
-    soundBtn.replaceChildren(fromHTML(sound.enabled ? icons.soundOn : icons.soundOff), sound.enabled ? t('cuSoundOff') : t('cuSoundOn'));
-    soundBtn.setAttribute('aria-pressed', String(sound.enabled));
-    soundBtn.classList.toggle('primary', !sound.enabled);
-  };
-  soundBtn.addEventListener('click', () => {
-    if (sound.enabled) sound.stop();
-    else sound.start();
-    paint();
-    onSoundChange();
-  });
-  volume.addEventListener('input', () => {
-    sound.setVolume(Number(volume.value));
-    onSoundChange();
-  });
-  const charDefs: [SoundCharacter, Parameters<typeof t>[0]][] = [
-    ['reducer', 'cuCharReducer'],
-    ['open', 'cuCharOpen'],
-    ['worn', 'cuCharWorn'],
-  ];
-  const charBtns = charDefs.map(([id, label]) =>
-    h(
-      'button',
-      {
-        class: 'chip',
-        'aria-pressed': String(sound.currentCharacter === id),
-        onclick: () => {
-          sound.setCharacter(id);
-          charBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(charDefs[i][0] === id)));
-          if (!sound.enabled) {
-            sound.start();
-            paint();
-            onSoundChange();
-          }
-        },
-      },
-      t(label),
-    ),
-  );
-  const characters = h('div', { class: 'lab-choice cu-chars', role: 'group', 'aria-label': t('cuCharacter') }, ...charBtns);
-  paint();
   const el = h(
     'div',
     { class: 'lab' },
@@ -318,10 +272,6 @@ function createCloseUpPanel(
       h('span', null, h('i', { style: 'background:#9aa6b2' }), t('cuBase')),
       h('span', null, h('i', { style: 'background:#fff' }), t('cuPitch')),
     ),
-    first.sound ? h('div', { class: 'info-label', style: 'margin-top:12px' }, t('cuSound')) : null,
-    first.sound ? h('div', { class: 'cu-sound-row' }, soundBtn, volume) : null,
-    first.sound ? characters : null,
-    first.sound ? h('p', { class: 'lab-hint' }, t('cuSoundNote')) : null,
     h('div', { class: 'info-label', style: 'margin-top:12px' }, t('cuFacts')),
     factsEl,
   );
@@ -332,7 +282,6 @@ function createCloseUpPanel(
       const def = getDef();
       if (!def) return;
       factsEl.replaceChildren(...def.facts(getRpm()).flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
-      paint();
     },
     setContacts(n) {
       if (n === last) return;
@@ -389,7 +338,6 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const forcesBtn = base.forces ? toolBtn(icons.forces, t('forces')) : null;
   const closeUpBtn = base.closeUp ? toolBtn(icons.mesh, t('closeUp')) : null;
   const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn);
-  const sound = new GearSound();
   let overlay: CloseUpOverlay | null = null;
 
   const playBtn = h('button', { class: 'play-btn', 'aria-label': t('pause') });
@@ -461,11 +409,6 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     if (refit) viewer.viewFrom(dir ?? viewer.viewDirection(), mech.camera.target, radius * zoomOut, true);
   };
 
-  const updateSound = (): void => {
-    const def = mech.closeUp;
-    sound.update(panel === 'closeup' && def?.sound ? def.sound(rpm) : null, playing && rpm > 0);
-  };
-
   /** Creates (or recreates after a lab change) the close-up overlay in the scene. */
   const syncOverlay = (): void => {
     overlay?.dispose();
@@ -485,14 +428,12 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     hint.classList.toggle('hidden', p !== 'none');
     if (arrows) arrows.group.visible = p === 'forces';
     if (was === 'closeup' && p !== 'closeup') {
-      sound.stop();
       if (viewer) viewer.controls.minDistance = 60;
       // A part selection applies its own highlight, which already resets every material.
       if (p !== 'part') scene?.focus(null);
     }
     if (p === 'closeup') scene?.focus(mech.closeUp?.focusParts ?? null);
     syncOverlay();
-    updateSound();
     updateReadouts();
   };
 
@@ -510,7 +451,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     : null;
 
   const closeUpPanel = base.closeUp
-    ? createCloseUpPanel(() => mech.closeUp, () => rpm, sound, updateSound)
+    ? createCloseUpPanel(() => mech.closeUp, () => rpm)
     : null;
 
   const labPanel = base.lab
@@ -592,16 +533,12 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   playBtn.addEventListener('click', () => {
     playing = !playing;
     updateReadouts();
-    updateSound();
   });
   slider.addEventListener('input', () => {
     rpm = Number(slider.value);
     updateReadouts();
     if (panel === 'forces') forcesPanel?.refresh();
-    if (panel === 'closeup') {
-      closeUpPanel?.refresh();
-      updateSound();
-    }
+    if (panel === 'closeup') closeUpPanel?.refresh();
   });
   explodeBtn.addEventListener('click', () => {
     exploded = !exploded;
@@ -642,7 +579,6 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       scene.focus(mech.closeUp?.focusParts ?? null);
       syncOverlay();
       closeUpPanel?.refresh();
-      updateSound();
       const cu = mech.closeUp;
       if (cu) viewer.viewFrom(cu.camera.dir, cu.camera.target, cu.camera.radius, true);
     }
@@ -697,7 +633,6 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       arrows?.dispose();
       overlay?.dispose();
       overlay = null;
-      sound.stop();
       viewer?.dispose();
       scene = null;
       arrows = null;
@@ -705,7 +640,6 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     },
     dispose() {
       sheet.close();
-      sound.dispose();
     },
   };
 }

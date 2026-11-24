@@ -66,18 +66,14 @@ describe('contact points on the line of action', () => {
   });
 });
 
-describe('mesh sound', () => {
+describe('close-up facts', () => {
   it('gear mesh frequency f = z1·n1/60', () => {
     expect(meshFrequency(20, 1000)).toBeCloseTo(333.33, 2);
-    const s = spurGear.closeUp!.sound!(1500);
-    expect(s.meshFrequency).toBeCloseTo(500, 9);
-    expect(s.teeth).toEqual([20, 40]);
-    expect(s.contactRatio).toBeCloseTo(1.635, 2);
   });
 
   it('close-up follows the lab configuration', () => {
     const v = spurGear.lab!.evaluate({ m: 1.5, z1: 18, z2: 90, x1: 0 }).mechanism;
-    expect(v.closeUp!.sound!(1000).meshFrequency).toBeCloseTo(300, 9);
     expect(v.closeUp!.camera.target[0]).toBeCloseTo(13.5, 9);
+    expect(v.closeUp!.facts(1000)[0].value).toMatch(/300/);
   });
 });

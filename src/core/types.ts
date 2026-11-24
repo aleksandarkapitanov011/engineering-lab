@@ -256,19 +256,7 @@ export interface CloseUpOverlay {
   dispose(): void;
 }
 
-/** Physical description of a running gear mesh, used to synthesise its sound. */
-export interface MechanismSound {
-  /** Tooth mesh frequency f = z₁·n₁/60, Hz. */
-  meshFrequency: number;
-  /** Tooth counts of the two meshing gears (errors repeat once per revolution of each). */
-  teeth: [number, number];
-  /** Transverse contact ratio: the fraction ε − 1 of each mesh cycle runs with two tooth pairs. */
-  contactRatio: number;
-  /** Relative load 0…1 (louder and harsher under load). */
-  load: number;
-}
-
-/** Optional close-up of the working zone (e.g. the gear mesh) with overlay and sound. */
+/** Optional close-up of the working zone (e.g. the gear mesh) with a live overlay. */
 export interface CloseUpDef {
   title: LText;
   intro: LText;
@@ -277,12 +265,11 @@ export interface CloseUpDef {
   focusParts?: string[];
   createOverlay(): CloseUpOverlay;
   facts(inputRpm: number): LabValue[];
-  sound?(inputRpm: number): MechanismSound;
 }
 
 export interface Mechanism {
   kind: 'mechanism';
-  /** Optional close-up of the working zone with live overlay and sound. */
+  /** Optional close-up of the working zone with a live overlay. */
   closeUp?: CloseUpDef;
   /** Optional parameter lab for the Model tab. */
   lab?: LabDef;
