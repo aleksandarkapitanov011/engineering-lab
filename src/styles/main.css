@@ -441,8 +441,8 @@ p {
 }
 
 .tool-btn {
-  width: 64px;
-  min-height: 60px;
+  width: 62px;
+  min-height: 54px;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 88%, transparent);
@@ -451,10 +451,10 @@ p {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
   font-size: 11px;
   font-weight: 600;
-  padding: 6px 2px;
+  padding: 4px 2px;
 }
 
 .tool-btn[aria-pressed='true'] {
@@ -1391,5 +1391,114 @@ input[type='range'] {
   margin: 0;
   font-weight: 700;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Forces & strength panel ---------- */
+
+.force-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 8px 0 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.force-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.force-legend i {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.chk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chk {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--ok);
+}
+
+.chk.bad {
+  border-left-color: var(--err);
+  background: color-mix(in srgb, var(--err) 10%, var(--surface-2));
+}
+
+.chk-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.chk-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chk-s {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+.chk.bad .chk-s {
+  color: var(--err);
+}
+
+.chk-formula {
+  font-family: 'Cambria Math', Georgia, serif;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 2px 0 6px;
+}
+
+.chk-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.chk-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ok);
+  transition: width 0.2s;
+}
+
+.chk.bad .chk-fill {
+  background: var(--err);
+}
+
+.chk-req {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text);
+}
+
+.chk-nums {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }

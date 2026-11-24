@@ -9,6 +9,7 @@ import { theory } from './theory';
 import { quiz } from './quiz';
 import { DEFAULT_CONFIG, layoutFor, type Layout } from './layout';
 import { createLab } from './lab';
+import { createForces } from './forces';
 
 const thumbnail = (() => {
   const p1 = polygonPath(gearOutline({ m: 2, z: 20, backlash: 0.1 }), true);
@@ -81,6 +82,7 @@ export function mechanismFor(L: Layout): Mechanism {
     },
     section: { normal: [0, -1, 0], constant: L.axisY },
     maxInputRpm: 3000,
+    forces: createForces(L),
   };
 }
 

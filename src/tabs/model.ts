@@ -1,13 +1,16 @@
 /**
  * TAB 1 — Модел: animated 3D model, speed control, readouts, exploded view, section, part info,
- * and (if the mechanism defines one) the parameter lab that regenerates the model live.
+ * plus optional panels defined by the mechanism:
+ *   - parameter lab (regenerates the model live),
+ *   - forces & strength check (3D force arrows, safety factors).
  */
 import type { AppContext, TabSpec, TabView } from '../app/context';
-import type { LabDef, LabResult, Mechanism, PartDef } from '../core/types';
+import type { ForcesDef, LabDef, LabParam, LabResult, Mechanism, PartDef, StrengthCheck } from '../core/types';
 import { solveSpeeds } from '../core/kinematics';
 import { fmt, lt, t } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
 import { MechanismScene } from '../three/mechanismScene';
+import { ForceArrows } from '../three/forceArrows';
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
@@ -34,35 +37,24 @@ const WARN_ICON: Record<string, string> = {
   error: icons.alert,
 };
 
-/** Builds the lab panel UI for a LabDef. Calls `onResult` (debounced) whenever a value changes. */
-function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) => void): { el: HTMLElement; reset(): void } {
-  const values: Record<string, number> = {};
-  for (const p of lab.params) values[p.id] = p.default;
-  const isDefault = (): boolean => lab.params.every((p) => values[p.id] === p.default);
+function warningList(items: { level: string; text: { bg: string; en?: string } }[]): HTMLElement[] {
+  return items.map((w) =>
+    h('li', { class: `lab-warn ${w.level}` }, h('span', { class: 'lab-warn-icon', html: WARN_ICON[w.level] }), h('span', null, lt(w.text))),
+  );
+}
 
+/** Sliders / choice chips for a list of parameters. `onChange(immediate)` fires on every edit. */
+function paramControls(
+  params: LabParam[],
+  values: Record<string, number>,
+  onChange: (immediate: boolean) => void,
+): { els: HTMLElement[]; sync(): void } {
   const outputs = new Map<string, HTMLOutputElement>();
   const inputs = new Map<string, HTMLInputElement>();
   const choiceRows = new Map<string, HTMLElement>();
-  const warningsEl = h('ul', { class: 'lab-warnings', 'aria-live': 'polite' });
-  const valuesEl = h('dl', { class: 'lab-values' });
-
-  let timer = 0;
-  const run = (immediate = false): void => {
-    window.clearTimeout(timer);
-    const go = (): void => {
-      const r = lab.evaluate({ ...values });
-      warningsEl.replaceChildren(
-        ...r.warnings.map((w) => h('li', { class: `lab-warn ${w.level}` }, h('span', { class: 'lab-warn-icon', html: WARN_ICON[w.level] }), h('span', null, lt(w.text)))),
-      );
-      valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
-      onResult(r, !isDefault());
-    };
-    if (immediate) go();
-    else timer = window.setTimeout(go, 120);
-  };
 
   const sync = (): void => {
-    for (const p of lab.params) {
+    for (const p of params) {
       const v = values[p.id];
       outputs.get(p.id)!.textContent = p.format ? p.format(v) : String(v);
       const input = inputs.get(p.id);
@@ -72,14 +64,13 @@ function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) 
       });
     }
   };
-
-  const set = (id: string, v: number, immediate = false): void => {
+  const set = (id: string, v: number, immediate: boolean): void => {
     values[id] = v;
     sync();
-    run(immediate);
+    onChange(immediate);
   };
 
-  const params = lab.params.map((p) => {
+  const els = params.map((p) => {
     const out = h('output', { class: 'lab-out' }) as HTMLOutputElement;
     outputs.set(p.id, out);
     let control: HTMLElement;
@@ -93,15 +84,8 @@ function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) 
       );
       choiceRows.set(p.id, control);
     } else {
-      const input = h('input', {
-        type: 'range',
-        min: p.min,
-        max: p.max,
-        step: p.step,
-        value: p.default,
-        'aria-label': lt(p.label),
-      }) as HTMLInputElement;
-      input.addEventListener('input', () => set(p.id, Number(input.value)));
+      const input = h('input', { type: 'range', min: p.min, max: p.max, step: p.step, value: p.default, 'aria-label': lt(p.label) }) as HTMLInputElement;
+      input.addEventListener('input', () => set(p.id, Number(input.value), false));
       inputs.set(p.id, input);
       const stepBy = (k: number): void => {
         const step = p.step ?? 1;
@@ -124,6 +108,31 @@ function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) 
       p.hint ? h('div', { class: 'lab-hint' }, lt(p.hint)) : null,
     );
   });
+  sync();
+  return { els, sync };
+}
+
+/** Parameter lab panel. Calls `onResult` (debounced while sliding) whenever a value changes. */
+function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) => void): HTMLElement {
+  const values: Record<string, number> = {};
+  for (const p of lab.params) values[p.id] = p.default;
+  const isDefault = (): boolean => lab.params.every((p) => values[p.id] === p.default);
+  const warningsEl = h('ul', { class: 'lab-warnings', 'aria-live': 'polite' });
+  const valuesEl = h('dl', { class: 'lab-values' });
+
+  let timer = 0;
+  const run = (immediate: boolean): void => {
+    window.clearTimeout(timer);
+    const go = (): void => {
+      const r = lab.evaluate({ ...values });
+      warningsEl.replaceChildren(...warningList(r.warnings));
+      valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+      onResult(r, !isDefault());
+    };
+    if (immediate) go();
+    else timer = window.setTimeout(go, 120);
+  };
+  const controls = paramControls(lab.params, values, run);
 
   const presets = h(
     'div',
@@ -135,7 +144,7 @@ function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) 
           class: 'chip',
           onclick: () => {
             Object.assign(values, pr.values);
-            sync();
+            controls.sync();
             run(true);
           },
         },
@@ -143,28 +152,105 @@ function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) 
       ),
     ),
   );
-
   const reset = (): void => {
     for (const p of lab.params) values[p.id] = p.default;
-    sync();
+    controls.sync();
     run(true);
   };
-
-  const el = h(
+  return h(
     'div',
     { class: 'lab' },
     h('p', { class: 'lab-intro' }, lt(lab.intro)),
     presets,
-    ...params,
+    ...controls.els,
     h('div', { class: 'info-label' }, t('labChecks')),
     warningsEl,
     h('div', { class: 'info-label' }, t('labValues')),
     valuesEl,
     h('button', { class: 'btn', style: 'margin-top:14px;width:100%', onclick: reset }, fromHTML(icons.reset), t('labReset')),
   );
-  sync();
-  return { el, reset };
 }
+
+function checkRow(c: StrengthCheck): HTMLElement {
+  const ok = c.safety >= c.required;
+  // Bar: the required value sits at 40 % of the track; the bar is capped at 100 %.
+  const pct = Math.min(100, (c.safety / c.required) * 40);
+  const f = (v: number, d: number): string => fmt(v, d);
+  return h(
+    'li',
+    { class: `chk ${ok ? 'ok' : 'bad'}` },
+    h('div', { class: 'chk-head' }, h('span', { class: 'chk-label' }, lt(c.label)), h('span', { class: 'chk-s' }, `S = ${f(c.safety, 2)}`)),
+    h('div', { class: 'chk-formula' }, c.formula),
+    h(
+      'div',
+      { class: 'chk-bar', role: 'img', 'aria-label': `S = ${f(c.safety, 2)}, ${t('required')} ${f(c.required, 1)}` },
+      h('div', { class: 'chk-fill', style: `width:${pct}%` }),
+      h('div', { class: 'chk-req', style: 'left:40%' }),
+    ),
+    h(
+      'div',
+      { class: 'chk-nums' },
+      `${f(c.stress, 0)} ${c.unit} / ${t('limit')} ${f(c.limit, 0)} ${c.unit} · ${t('required')} S ≥ ${f(c.required, 1)}`,
+    ),
+    c.note ? h('div', { class: 'lab-hint' }, lt(c.note)) : null,
+  );
+}
+
+/** Forces & strength panel. `refresh()` re-evaluates with the current definition and input speed. */
+function createForcesPanel(
+  getDef: () => ForcesDef | undefined,
+  getRpm: () => number,
+  onArrows: (r: ReturnType<ForcesDef['evaluate']>['arrows']) => void,
+): { el: HTMLElement; refresh(): void } {
+  const first = getDef()!;
+  const values: Record<string, number> = {};
+  for (const p of first.params) values[p.id] = p.default;
+  const rpmEl = h('div', { class: 'lab-hint' });
+  const warningsEl = h('ul', { class: 'lab-warnings', 'aria-live': 'polite' });
+  const checksEl = h('ul', { class: 'chk-list' });
+  const valuesEl = h('dl', { class: 'lab-values' });
+
+  let timer = 0;
+  const refresh = (): void => {
+    const def = getDef();
+    if (!def) return;
+    const rpm = getRpm();
+    rpmEl.textContent = `${t('inputSpeed')}: n₁ = ${fmt(rpm)} ${t('rpm')}`;
+    const r = def.evaluate({ ...values }, rpm);
+    warningsEl.replaceChildren(...warningList(r.warnings));
+    checksEl.replaceChildren(...r.checks.map(checkRow));
+    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+    onArrows(r.arrows);
+  };
+  const controls = paramControls(first.params, values, (immediate) => {
+    window.clearTimeout(timer);
+    if (immediate) refresh();
+    else timer = window.setTimeout(refresh, 60);
+  });
+  const legend = h(
+    'div',
+    { class: 'force-legend' },
+    h('span', null, h('i', { style: 'background:#ff5a3c' }), 'Ft'),
+    h('span', null, h('i', { style: 'background:#3c9dff' }), 'Fr'),
+    h('span', null, h('i', { style: 'background:#2fbf71' }), t('reactions')),
+  );
+  const el = h(
+    'div',
+    { class: 'lab' },
+    h('p', { class: 'lab-intro' }, lt(first.intro)),
+    ...controls.els,
+    rpmEl,
+    legend,
+    warningsEl,
+    h('div', { class: 'info-label' }, t('forcesValues')),
+    valuesEl,
+    h('div', { class: 'info-label', style: 'margin-top:14px' }, t('forcesChecks')),
+    checksEl,
+  );
+  return { el, refresh };
+}
+
+type Panel = 'none' | 'part' | 'lab' | 'forces';
 
 function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const viewport = h('div', { class: 'viewport' });
@@ -179,10 +265,12 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   let section = false;
   let selected: string | null = null;
   let inputAngle = 0;
-  let labOpen = false;
+  let panel: Panel = 'none';
+  let lastArrows: ReturnType<ForcesDef['evaluate']>['arrows'] = [];
 
   let viewer: Viewer | null = null;
   let scene: MechanismScene | null = null;
+  let arrows: ForceArrows | null = null;
   let radius = 100;
   const cleanups: (() => void)[] = [];
 
@@ -200,12 +288,13 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     );
   }
 
-  const explodeBtn = h('button', { class: 'tool-btn', 'aria-pressed': 'false' }, fromHTML(icons.explode), h('span', null, t('explode')));
-  const sectionBtn = h('button', { class: 'tool-btn', 'aria-pressed': 'false' }, fromHTML(icons.section), h('span', null, t('section')));
-  const labBtn = base.lab
-    ? h('button', { class: 'tool-btn', 'aria-pressed': 'false' }, fromHTML(icons.sliders), h('span', null, t('lab')), h('span', { class: 'tool-badge', hidden: true }))
-    : null;
-  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn);
+  const toolBtn = (icon: string, label: string, badge = false): HTMLButtonElement =>
+    h('button', { class: 'tool-btn', 'aria-pressed': 'false' }, fromHTML(icon), h('span', null, label), badge ? h('span', { class: 'tool-badge', hidden: true }) : null);
+  const explodeBtn = toolBtn(icons.explode, t('explode'));
+  const sectionBtn = toolBtn(icons.section, t('section'));
+  const labBtn = base.lab ? toolBtn(icons.sliders, t('lab'), true) : null;
+  const forcesBtn = base.forces ? toolBtn(icons.forces, t('forces')) : null;
+  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn);
 
   const playBtn = h('button', { class: 'play-btn', 'aria-label': t('pause') });
   const slider = h('input', {
@@ -230,7 +319,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   };
   buildReadouts();
 
-  const panel = h(
+  const controlPanel = h(
     'div',
     { class: 'control-panel' },
     h(
@@ -249,7 +338,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   );
 
   const hint = h('div', { class: 'tap-hint' }, t('tapHint'));
-  el.append(h('div', { class: 'overlay-top' }, viewBtns), toolCol, hint, panel);
+  el.append(h('div', { class: 'overlay-top' }, viewBtns), toolCol, hint, controlPanel);
   el.appendChild(sheet.el); // keep the sheet on top of the panel
 
   const updateReadouts = (): void => {
@@ -264,9 +353,98 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }
     playBtn.innerHTML = playing ? icons.pause : icons.play;
     playBtn.setAttribute('aria-label', playing ? t('pause') : t('play'));
-    scene?.setArrows(rpm > 0, shown);
+    scene?.setArrows(rpm > 0 && panel !== 'forces', shown);
     viewer?.requestRender();
   };
+
+  /** Keeps the model centred in the space left above whatever covers the bottom of the view. */
+  const updateInsets = (refit = false, dir?: [number, number, number], zoomOut = 1): void => {
+    if (!viewer) return;
+    const bottom = sheet.isOpen() ? sheet.el.offsetHeight : controlPanel.offsetHeight;
+    viewer.setInsets(64, bottom + 16);
+    if (refit) viewer.viewFrom(dir ?? viewer.viewDirection(), mech.camera.target, radius * zoomOut, true);
+  };
+
+  const setPanel = (p: Panel): void => {
+    panel = p;
+    labBtn?.setAttribute('aria-pressed', String(p === 'lab'));
+    forcesBtn?.setAttribute('aria-pressed', String(p === 'forces'));
+    hint.classList.toggle('hidden', p !== 'none');
+    if (arrows) arrows.group.visible = p === 'forces';
+    updateReadouts();
+  };
+
+  // ----- Panels -----
+  const forcesPanel = base.forces
+    ? createForcesPanel(
+        () => mech.forces,
+        () => rpm,
+        (a) => {
+          lastArrows = a;
+          arrows?.set(a);
+          viewer?.requestRender();
+        },
+      )
+    : null;
+
+  const labPanel = base.lab
+    ? createLabPanel(base.lab, (r, changed) => {
+        mech = changed ? r.mechanism : base;
+        labBtn!.querySelector<HTMLElement>('.tool-badge')!.hidden = !changed;
+        buildReadouts();
+        buildScene(false);
+      })
+    : null;
+
+  const select = (id: string | null): void => {
+    selected = id;
+    scene?.highlight(id);
+    viewer?.requestRender();
+    if (id) {
+      const def = mech.parts.find((p) => p.id === id);
+      if (!def) return;
+      setPanel('part');
+      sheet.open(lt(def.meta.name), partInfo(def));
+    } else if (panel === 'part') {
+      sheet.close();
+    }
+  };
+
+  const clearSelection = (): void => {
+    if (!selected) return;
+    selected = null;
+    scene?.highlight(null);
+  };
+
+  const openLab = (): void => {
+    if (!base.lab || !labPanel) return;
+    clearSelection();
+    setPanel('lab');
+    sheet.open(lt(base.lab.title), labPanel, { kicker: lt(base.title) });
+    window.setTimeout(() => updateInsets(true), 300);
+  };
+
+  const openForces = (): void => {
+    if (!base.forces || !forcesPanel) return;
+    clearSelection();
+    setPanel('forces');
+    forcesPanel.refresh();
+    sheet.open(lt(base.forces.title), forcesPanel.el, { kicker: lt(base.title) });
+    // Forces act in the gear plane: look at it almost head-on.
+    // Arrows reach beyond the model, so leave extra room around it.
+    window.setTimeout(() => updateInsets(true, [0.32, 0.28, 1], 1.45), 300);
+  };
+
+  labBtn?.addEventListener('click', () => (panel === 'lab' ? sheet.close() : openLab()));
+  forcesBtn?.addEventListener('click', () => (panel === 'forces' ? sheet.close() : openForces()));
+
+  sheet.onClose(() => {
+    const was = panel;
+    setPanel('none');
+    clearSelection();
+    viewer?.requestRender();
+    updateInsets(was === 'lab' || was === 'forces');
+  });
 
   playBtn.addEventListener('click', () => {
     playing = !playing;
@@ -275,6 +453,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   slider.addEventListener('input', () => {
     rpm = Number(slider.value);
     updateReadouts();
+    if (panel === 'forces') forcesPanel?.refresh();
   });
   explodeBtn.addEventListener('click', () => {
     exploded = !exploded;
@@ -289,32 +468,8 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     viewer?.requestRender();
   });
 
-  /** Keeps the model centred in the space left above whatever covers the bottom of the view. */
-  const updateInsets = (refit = false): void => {
-    if (!viewer) return;
-    const bottom = sheet.isOpen() ? sheet.el.offsetHeight : panel.offsetHeight;
-    viewer.setInsets(56, bottom + 16);
-    if (refit) viewer.viewFrom(viewer.viewDirection(), mech.camera.target, radius, true);
-  };
-
-  const select = (id: string | null): void => {
-    selected = id;
-    scene?.highlight(id);
-    viewer?.requestRender();
-    hint.classList.toggle('hidden', id !== null);
-    if (id) {
-      const def = mech.parts.find((p) => p.id === id);
-      if (!def) return;
-      labOpen = false;
-      labBtn?.setAttribute('aria-pressed', 'false');
-      sheet.open(lt(def.meta.name), partInfo(def));
-    } else if (!labOpen) {
-      sheet.close();
-    }
-  };
-
   // ----- Scene (re)building -----
-  const buildScene = (fit: boolean): void => {
+  function buildScene(fit: boolean): void {
     if (!viewer) return;
     if (scene) {
       inputAngle = scene.inputAngle;
@@ -324,7 +479,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     scene.inputAngle = inputAngle;
     viewer.scene.add(scene.root);
     const sphere = scene.boundingSphere();
-    const newRadius = sphere.radius * 0.92;
+    const newRadius = sphere.radius * 0.95;
     viewer.setFloor(scene.minY(), 900, [sphere.center.x, 0, sphere.center.z]);
     const bigChange = newRadius > radius * 1.2 || newRadius < radius * 0.75;
     radius = newRadius;
@@ -334,46 +489,10 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     scene.setSection(section);
     if (selected && mech.parts.some((p) => p.id === selected)) scene.highlight(selected);
     else selected = null;
+    if (panel === 'forces') forcesPanel?.refresh();
     updateReadouts();
     viewer.requestRender();
-  };
-
-  // ----- Parameter lab -----
-  const labPanel = base.lab
-    ? createLabPanel(base.lab, (r, changed) => {
-        mech = changed ? r.mechanism : base;
-        labBtn!.querySelector<HTMLElement>('.tool-badge')!.hidden = !changed;
-        buildReadouts();
-        buildScene(false);
-      })
-    : null;
-
-  const openLab = (): void => {
-    if (!base.lab || !labPanel) return;
-    if (selected) {
-      selected = null;
-      scene?.highlight(null);
-    }
-    labOpen = true;
-    labBtn!.setAttribute('aria-pressed', 'true');
-    hint.classList.add('hidden');
-    sheet.open(lt(base.lab.title), labPanel.el, { kicker: lt(base.title) });
-    // Wait for the sheet's slide-in so its height is final, then frame the model above it.
-    window.setTimeout(() => updateInsets(true), 300);
-  };
-  labBtn?.addEventListener('click', () => {
-    if (labOpen) sheet.close();
-    else openLab();
-  });
-
-  sheet.onClose(() => {
-    const wasLab = labOpen;
-    labOpen = false;
-    labBtn?.setAttribute('aria-pressed', 'false');
-    if (selected) select(null);
-    hint.classList.remove('hidden');
-    updateInsets(wasLab);
-  });
+  }
 
   return {
     el,
@@ -384,6 +503,10 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
         return;
       }
       viewer = new Viewer(viewport, ctx.theme());
+      arrows = new ForceArrows();
+      viewer.scene.add(arrows.group);
+      arrows.set(lastArrows);
+      arrows.group.visible = panel === 'forces';
       updateInsets();
       buildScene(true);
       const v = viewer;
@@ -401,7 +524,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
           const hit = v.raycast(e.clientX, e.clientY, s.pickables())[0];
           const id = hit ? s.partIdOf(hit.object) : null;
           if (id) select(id === selected ? null : id);
-          else if (!labOpen) select(null);
+          else if (panel === 'part' || panel === 'none') select(null);
         }),
         ctx.onThemeChange((th) => v.setTheme(th)),
       );
@@ -411,8 +534,10 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       cleanups.splice(0).forEach((f) => f());
       if (scene) inputAngle = scene.inputAngle;
       scene?.dispose();
+      arrows?.dispose();
       viewer?.dispose();
       scene = null;
+      arrows = null;
       viewer = null;
     },
     dispose() {

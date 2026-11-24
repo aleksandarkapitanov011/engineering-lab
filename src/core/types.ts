@@ -204,10 +204,56 @@ export interface LabDef {
   evaluate(values: Record<string, number>): LabResult;
 }
 
+/** A force arrow drawn in the 3D view (world coordinates, mm and N). */
+export interface ForceArrow {
+  /** Application point. */
+  at: Vec3;
+  /** Direction of the force (need not be normalised). */
+  dir: Vec3;
+  magnitude: number;
+  label: string;
+  color: string;
+  /** 'from': the arrow starts at `at`. 'to': the arrow head stops `gap` mm before `at` (pushing on it). */
+  mode?: 'from' | 'to';
+  gap?: number;
+  /** Where the label sits along the arrow, 0 = tail, 1 = beyond the tip (default). */
+  labelAt?: number;
+}
+
+/** One line of a strength check: stress vs. limit and the resulting safety factor. */
+export interface StrengthCheck {
+  label: LText;
+  /** Short formula shown under the label. */
+  formula: string;
+  stress: number;
+  limit: number;
+  unit: string;
+  safety: number;
+  required: number;
+  note?: LText;
+}
+
+export interface ForcesResult {
+  values: LabValue[];
+  checks: StrengthCheck[];
+  arrows: ForceArrow[];
+  warnings: LabWarning[];
+}
+
+/** Optional forces & strength panel for the Model tab. `inputRpm` comes from the speed slider. */
+export interface ForcesDef {
+  title: LText;
+  intro: LText;
+  params: LabParam[];
+  evaluate(values: Record<string, number>, inputRpm: number): ForcesResult;
+}
+
 export interface Mechanism {
   kind: 'mechanism';
   /** Optional parameter lab for the Model tab. */
   lab?: LabDef;
+  /** Optional forces & strength check for the Model tab. */
+  forces?: ForcesDef;
   id: string;
   title: LText;
   subtitle: LText;

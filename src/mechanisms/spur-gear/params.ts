@@ -23,8 +23,8 @@ export const KEY1 = { b: 6, h: 6, t1: 3.5, t2: 2.8, L: 16 };
 export const KEY2 = { b: 8, h: 7, t1: 4.0, t2: 3.3, L: 14 };
 
 /** Deep groove ball bearings. */
-export const BRG1 = { code: '6004', d: 20, D: 42, B: 12, n: 9, ball: 6.35 };
-export const BRG2 = { code: '6005', d: 25, D: 47, B: 12, n: 10, ball: 7.14 };
+export const BRG1 = { code: '6004', d: 20, D: 42, B: 12, n: 9, ball: 6.35, C: 9950 };
+export const BRG2 = { code: '6005', d: 25, D: 47, B: 12, n: 10, ball: 7.14, C: 11900 };
 
 /** Shaft 1 in its own frame: z_local = 0 at the input end. World z = local - SHAFT1_OFFSET. */
 export const SHAFT1_OFFSET = 74;
