@@ -74,6 +74,45 @@ describe('gear mesh excitation', () => {
     expect(peak).toBeGreaterThan(0.1);
   });
 
+  it('worn teeth: larger tooth errors give stronger shaft sidebands relative to the mesh line', () => {
+    const renderWith = (errorScale: number, rattle: number): Float64Array => {
+      const g = new MeshExcitation(SR);
+      g.setTeeth(20, 40);
+      g.meshFrequency = fz;
+      g.duty = 0.635;
+      g.errorScale = errorScale;
+      g.rattle = rattle;
+      for (let i = 0; i < SR * 0.2; i++) g.next();
+      const out = new Float64Array(SR * 2.4);
+      for (let i = 0; i < out.length; i++) out[i] = g.next();
+      return out;
+    };
+    const fresh = renderWith(1, 0);
+    const worn = renderWith(2.6, 1);
+    const side = (y: Float64Array): number => (amp(y, fz + n1 / 60) + amp(y, fz - n1 / 60)) / amp(y, fz);
+    expect(side(worn)).toBeGreaterThan(1.5 * side(fresh));
+  });
+
+  it('sliding friction makes the signal noisy, not a clean periodic tone', () => {
+    const g = new MeshExcitation(SR);
+    g.meshFrequency = fz;
+    for (let i = 0; i < SR * 0.2; i++) g.next();
+    const period = Math.round((40 * SR) / fz); // the full tooth pattern repeats every 40 teeth
+    const a = new Float64Array(period);
+    const b = new Float64Array(period);
+    for (let i = 0; i < period; i++) a[i] = g.next();
+    for (let i = 0; i < period; i++) b[i] = g.next();
+    let diff = 0;
+    let energy = 0;
+    for (let i = 0; i < period; i++) {
+      diff += (a[i] - b[i]) ** 2;
+      energy += a[i] ** 2;
+    }
+    // Periodic structure plus a clearly random part (friction, roughness, drift).
+    expect(diff / energy).toBeGreaterThan(0.08);
+    expect(diff / energy).toBeLessThan(0.6);
+  });
+
   it('its source is self-contained, so it can be injected into an AudioWorklet', () => {
     const C = new Function(`return ${MeshExcitation.toString()};`)() as typeof MeshExcitation;
     const g = new C(SR);

@@ -14,7 +14,7 @@ import { ForceArrows } from '../three/forceArrows';
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
-import { GearSound } from '../ui/gearSound';
+import { GearSound, type SoundCharacter } from '../ui/gearSound';
 
 /** Extra slow motion in the close-up so the contact can be followed by eye. */
 const CLOSEUP_SLOWDOWN = 10;
@@ -281,6 +281,31 @@ function createCloseUpPanel(
     sound.setVolume(Number(volume.value));
     onSoundChange();
   });
+  const charDefs: [SoundCharacter, Parameters<typeof t>[0]][] = [
+    ['reducer', 'cuCharReducer'],
+    ['open', 'cuCharOpen'],
+    ['worn', 'cuCharWorn'],
+  ];
+  const charBtns = charDefs.map(([id, label]) =>
+    h(
+      'button',
+      {
+        class: 'chip',
+        'aria-pressed': String(sound.currentCharacter === id),
+        onclick: () => {
+          sound.setCharacter(id);
+          charBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(charDefs[i][0] === id)));
+          if (!sound.enabled) {
+            sound.start();
+            paint();
+            onSoundChange();
+          }
+        },
+      },
+      t(label),
+    ),
+  );
+  const characters = h('div', { class: 'lab-choice cu-chars', role: 'group', 'aria-label': t('cuCharacter') }, ...charBtns);
   paint();
   const el = h(
     'div',
@@ -295,6 +320,7 @@ function createCloseUpPanel(
     ),
     first.sound ? h('div', { class: 'info-label', style: 'margin-top:12px' }, t('cuSound')) : null,
     first.sound ? h('div', { class: 'cu-sound-row' }, soundBtn, volume) : null,
+    first.sound ? characters : null,
     first.sound ? h('p', { class: 'lab-hint' }, t('cuSoundNote')) : null,
     h('div', { class: 'info-label', style: 'margin-top:12px' }, t('cuFacts')),
     factsEl,
