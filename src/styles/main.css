@@ -986,8 +986,9 @@ input[type='range'] {
 
 .place-btn {
   position: absolute;
-  transform: translate(-50%, -50%);
+  translate: -50% -50%;
   z-index: 5;
+  box-shadow: var(--shadow);
 }
 
 .result {
