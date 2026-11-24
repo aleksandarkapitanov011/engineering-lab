@@ -5,12 +5,13 @@
  *   - forces & strength check (3D force arrows, safety factors).
  */
 import type { AppContext, TabSpec, TabView } from '../app/context';
-import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, Mechanism, PartDef, StrengthCheck } from '../core/types';
+import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, Mechanism, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
 import { solveSpeeds } from '../core/kinematics';
 import { fmt, lt, t } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
 import { MechanismScene } from '../three/mechanismScene';
 import { ForceArrows } from '../three/forceArrows';
+import { cssColour, legendGradient, rainbow, scaleValue, type StressMode } from '../three/colormap';
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
@@ -292,7 +293,119 @@ function createCloseUpPanel(
   };
 }
 
-type Panel = 'none' | 'part' | 'lab' | 'forces' | 'closeup';
+/** Stress panel: loads, colour scale, FE mesh plot, element checks. */
+function createStressPanel(
+  getDef: () => StressDef | undefined,
+  getRpm: () => number,
+  getAngles: () => Record<string, number>,
+  onResult: (r: StressResult, mode: StressMode, maxStress: number) => void,
+): { el: HTMLElement; refresh(): void } {
+  const first = getDef()!;
+  const values: Record<string, number> = {};
+  for (const p of first.params) values[p.id] = p.default;
+  let mode: StressMode = 'utilisation';
+  let plotIndex = 0;
+  let last: { r: StressResult; max: number } | null = null;
+  let timer = 0;
+
+  const warningsEl = h('ul', { class: 'lab-warnings', 'aria-live': 'polite' });
+  const checksEl = h('ul', { class: 'chk-list' });
+  const valuesEl = h('dl', { class: 'lab-values' });
+  const legendLabels = h('div', { class: 'fem-legend-labels' });
+  const legend = h(
+    'div',
+    { class: 'fem-legend' },
+    h('div', { class: 'fem-legend-bar', style: `background:${legendGradient()}` }, h('span', { class: 'fem-legend-over', title: t('stressOver') })),
+    legendLabels,
+  );
+  const canvas = h('canvas', { class: 'fem-canvas', role: 'img' }) as HTMLCanvasElement;
+  const plotChips = h('div', { class: 'lab-choice', role: 'group' });
+  const modeChips = h('div', { class: 'lab-choice', role: 'group' });
+  const modeDefs: [StressMode, Parameters<typeof t>[0]][] = [
+    ['utilisation', 'stressUtil'],
+    ['absolute', 'stressAbs'],
+  ];
+  for (const [id, label] of modeDefs) {
+    modeChips.append(
+      h('button', { class: 'chip', 'data-mode': id, onclick: () => { mode = id; render(); } }, t(label)),
+    );
+  }
+
+  const colourFn = (t: number): string => cssColour(rainbow(t));
+
+  const drawPlot = (): void => {
+    if (!last || !last.r.plots.length) return;
+    const w = canvas.clientWidth;
+    if (w === 0) {
+      requestAnimationFrame(drawPlot);
+      return;
+    }
+    const hgt = 260;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(hgt * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    last.r.plots[Math.min(plotIndex, last.r.plots.length - 1)].draw(ctx, w, hgt, colourFn);
+  };
+
+  const render = (): void => {
+    if (!last) return;
+    modeChips.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+    legendLabels.replaceChildren(
+      ...(mode === 'utilisation'
+        ? [h('span', null, '0'), h('span', null, '50 %'), h('span', null, '100 % σдоп')]
+        : [h('span', null, '0'), h('span', null, `${fmt(last.max / 2)}`), h('span', null, `${fmt(last.max)} MPa`)]),
+    );
+    drawPlot();
+    onResult(last.r, mode, last.max);
+  };
+
+  const refresh = (): void => {
+    const def = getDef();
+    if (!def) return;
+    const r = def.evaluate({ ...values }, getRpm(), getAngles());
+    const max = Math.max(1e-9, ...r.checks.map((c) => c.stress));
+    last = { r, max };
+    warningsEl.replaceChildren(...warningList(r.warnings));
+    checksEl.replaceChildren(...r.checks.map(checkRow));
+    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+    plotChips.replaceChildren(
+      ...r.plots.map((p, i) =>
+        h('button', { class: 'chip', 'aria-pressed': String(i === plotIndex), onclick: () => { plotIndex = i; plotChips.querySelectorAll('button').forEach((b, k) => b.setAttribute('aria-pressed', String(k === i))); drawPlot(); } }, lt(p.label)),
+      ),
+    );
+    render();
+  };
+  const controls = paramControls(first.params, values, (immediate) => {
+    window.clearTimeout(timer);
+    if (immediate) refresh();
+    else timer = window.setTimeout(refresh, 80);
+  });
+
+  const el = h(
+    'div',
+    { class: 'lab' },
+    h('p', { class: 'lab-intro' }, lt(first.intro)),
+    ...controls.els,
+    h('div', { class: 'info-label', style: 'margin-top:10px' }, t('stressScale')),
+    modeChips,
+    legend,
+    warningsEl,
+    h('div', { class: 'info-label', style: 'margin-top:12px' }, t('stressPlot')),
+    plotChips,
+    canvas,
+    h('p', { class: 'lab-hint' }, t('stressPlotNote')),
+    h('div', { class: 'info-label', style: 'margin-top:12px' }, t('stressChecks')),
+    checksEl,
+    h('div', { class: 'info-label', style: 'margin-top:12px' }, t('stressValues')),
+    valuesEl,
+  );
+  return { el, refresh };
+}
+
+type Panel = 'none' | 'part' | 'lab' | 'forces' | 'closeup' | 'stress';
 
 function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const viewport = h('div', { class: 'viewport' });
@@ -337,7 +450,9 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const labBtn = base.lab ? toolBtn(icons.sliders, t('lab'), true) : null;
   const forcesBtn = base.forces ? toolBtn(icons.forces, t('forces')) : null;
   const closeUpBtn = base.closeUp ? toolBtn(icons.mesh, t('closeUp')) : null;
-  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn);
+  const stressBtn = base.stress ? toolBtn(icons.stress, t('stress')) : null;
+  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn);
+  let playingBeforeStress = true;
   let overlay: CloseUpOverlay | null = null;
 
   const playBtn = h('button', { class: 'play-btn', 'aria-label': t('pause') });
@@ -397,7 +512,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }
     playBtn.innerHTML = playing ? icons.pause : icons.play;
     playBtn.setAttribute('aria-label', playing ? t('pause') : t('play'));
-    scene?.setArrows(rpm > 0 && panel !== 'forces' && panel !== 'closeup', shown);
+    scene?.setArrows(rpm > 0 && panel !== 'forces' && panel !== 'closeup' && panel !== 'stress', shown);
     viewer?.requestRender();
   };
 
@@ -425,6 +540,12 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     labBtn?.setAttribute('aria-pressed', String(p === 'lab'));
     forcesBtn?.setAttribute('aria-pressed', String(p === 'forces'));
     closeUpBtn?.setAttribute('aria-pressed', String(p === 'closeup'));
+    stressBtn?.setAttribute('aria-pressed', String(p === 'stress'));
+    if (was === 'stress' && p !== 'stress') {
+      scene?.paintStress(null);
+      playing = playingBeforeStress;
+      viewer?.requestRender();
+    }
     hint.classList.toggle('hidden', p !== 'none');
     if (arrows) arrows.group.visible = p === 'forces';
     if (was === 'closeup' && p !== 'closeup') {
@@ -454,6 +575,21 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     ? createCloseUpPanel(() => mech.closeUp, () => rpm)
     : null;
 
+  const stressPanel = base.stress
+    ? createStressPanel(
+        () => mech.stress,
+        () => rpm,
+        () => scene?.bodyAngles() ?? {},
+        (r, mode, max) => {
+          if (panel !== 'stress' || !scene) return;
+          const fields = new Map<string, (p: [number, number, number]) => [number, number, number]>();
+          for (const f of r.fields) fields.set(f.partId, (p) => rainbow(scaleValue(mode, f.stress(p), f.allowable, max)));
+          scene.paintStress(fields);
+          viewer?.requestRender();
+        },
+      )
+    : null;
+
   const labPanel = base.lab
     ? createLabPanel(base.lab, (r, changed) => {
         mech = changed ? r.mechanism : base;
@@ -465,16 +601,18 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
 
   const select = (id: string | null): void => {
     selected = id;
-    scene?.highlight(id);
-    viewer?.requestRender();
     if (id) {
       const def = mech.parts.find((p) => p.id === id);
       if (!def) return;
+      // Switch panels first: leaving the stress view restores the materials, then highlight.
       setPanel('part');
+      scene?.highlight(id);
       sheet.open(lt(def.meta.name), partInfo(def));
-    } else if (panel === 'part') {
-      sheet.close();
+    } else {
+      scene?.highlight(null);
+      if (panel === 'part') sheet.close();
     }
+    viewer?.requestRender();
   };
 
   const clearSelection = (): void => {
@@ -517,7 +655,19 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }, 300);
   };
 
+  const openStress = (): void => {
+    if (!base.stress || !stressPanel) return;
+    clearSelection();
+    playingBeforeStress = playing;
+    playing = false; // static analysis
+    setPanel('stress');
+    sheet.open(lt(base.stress.title), stressPanel.el, { kicker: lt(base.title) });
+    stressPanel.refresh();
+    window.setTimeout(() => updateInsets(true, mech.camera.views.iso), 300);
+  };
+
   labBtn?.addEventListener('click', () => (panel === 'lab' ? sheet.close() : openLab()));
+  stressBtn?.addEventListener('click', () => (panel === 'stress' ? sheet.close() : openStress()));
   closeUpBtn?.addEventListener('click', () => (panel === 'closeup' ? sheet.close() : openCloseUp()));
   forcesBtn?.addEventListener('click', () => (panel === 'forces' ? sheet.close() : openForces()));
 
@@ -527,7 +677,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     clearSelection();
     viewer?.requestRender();
     if (was === 'closeup') updateInsets(true, mech.camera.views.iso);
-    else updateInsets(was === 'lab' || was === 'forces');
+    else updateInsets(was === 'lab' || was === 'forces' || was === 'stress');
   });
 
   playBtn.addEventListener('click', () => {
@@ -539,6 +689,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     updateReadouts();
     if (panel === 'forces') forcesPanel?.refresh();
     if (panel === 'closeup') closeUpPanel?.refresh();
+    if (panel === 'stress') stressPanel?.refresh();
   });
   explodeBtn.addEventListener('click', () => {
     exploded = !exploded;
@@ -575,6 +726,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     if (selected && mech.parts.some((p) => p.id === selected)) scene.highlight(selected);
     else selected = null;
     if (panel === 'forces') forcesPanel?.refresh();
+    if (panel === 'stress') stressPanel?.refresh();
     if (panel === 'closeup') {
       scene.focus(mech.closeUp?.focusParts ?? null);
       syncOverlay();

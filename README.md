@@ -7,7 +7,7 @@ on two parallel shafts with keys, ball bearings and a base with bearing supports
 Stack: Vite + TypeScript + Three.js (no framework), Capacitor for Android. Everything runs offline;
 all geometry is generated procedurally (no model files). UI language is Bulgarian, with English prepared.
 
-| Tab | What it does |
+| Tab | What it does  **FEM** colours every part by stress (rainbow scale, utilisation σ/σ_allow or MPa): the teeth come from a real 2D plane-stress finite element solution (CST mesh of a tooth + rim sector, load Fₙ at the highest point of single tooth contact), shafts from beam theory with stress-concentration factors, keys from crushing, bearings from Stribeck + Hertz (Hamrock–Brewe); the panel shows the coloured FE mesh and per-element checks. |
 | --- | --- |
 | **Модел** **Параметри** opens the parameter lab: module (ISO 54 series), z₁, z₂ and profile shift x₁ (x₂ = −x₁) with presets; the 3D model is regenerated live and design checks report undercut, pointed teeth, contact ratio, bearing clash, pinion shaft and too large i. **Сили** opens the forces & strength panel: power P and K_A (speed from the slider) give M₁, M₂, Ft, Fr, Fₙ and bearing reactions drawn as 3D arrows, plus safety factors for Lewis bending, Hertz contact, key crushing and shaft torsion, and bearing L10h life. **Зацепване** flies the camera into the mesh: base/pitch circles, line of action N₁N₂ with the active path A–E, pitch point and α drawn over the gears, live contact points synced with the 3D teeth (extra ×10 slow motion), a live count of tooth pairs in contact. | Animated 3D model, 0–3000 min⁻¹ input slider, live n₁ / n₂ / i readouts and rotation arrows, exploded view, section plane through the shaft axes, standard views, tap a part for its metadata. |
 | **Сглоби** | Assembly game: drag a part card onto the model (or tap card, then the target). Wrong order shakes the card and explains why. Timer, mistakes, 1–3 stars, best score in `localStorage`, rotating reward. |
@@ -137,9 +137,12 @@ interface in `src/core/types.ts`, so adding one never touches them.
    the pure `computeForces()` is unit-tested against hand calculations.
 10. **Optional close-up**: add `closeUp: { title, intro, camera, focusParts, createOverlay(), facts(rpm) }`.
    The overlay's `update(inputAngle)` is called every frame. See `spur-gear/closeup.ts`.
-11. **Export** the `Mechanism` from `index.ts` (also `camera` view directions, `section` plane, `maxInputRpm`,
+11. **Optional stress analysis**: add `stress: { title, intro, params, evaluate(values, inputRpm, bodyAngles) }` returning
+   per-part `fields` (`stress(point)` in the part's body frame + allowable), `checks`, `plots` (canvas drawings) and values.
+   The generic 2D FEM solver is `src/core/fem2d.ts` (tested against the patch test and a cantilever); see `spur-gear/stress.ts`.
+12. **Export** the `Mechanism` from `index.ts` (also `camera` view directions, `section` plane, `maxInputRpm`,
    catalogue `thumbnail` SVG, optional `pro: true`).
-12. **Register** it in `src/mechanisms/index.ts` with `registerEntry(myMechanism)` and remove its teaser entry.
+13. **Register** it in `src/mechanisms/index.ts` with `registerEntry(myMechanism)` and remove its teaser entry.
 
 ## Localisation
 

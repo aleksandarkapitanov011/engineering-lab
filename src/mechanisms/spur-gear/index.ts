@@ -11,6 +11,7 @@ import { DEFAULT_CONFIG, layoutFor, type Layout } from './layout';
 import { createLab } from './lab';
 import { createForces } from './forces';
 import { createCloseUp } from './closeup';
+import { createStress } from './stress';
 
 const thumbnail = (() => {
   const p1 = polygonPath(gearOutline({ m: 2, z: 20, backlash: 0.1 }), true);
@@ -85,6 +86,7 @@ export function mechanismFor(L: Layout): Mechanism {
     maxInputRpm: 3000,
     forces: createForces(L),
     closeUp: createCloseUp(L),
+    stress: createStress(L),
   };
 }
 

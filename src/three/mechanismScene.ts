@@ -189,6 +189,13 @@ export class MechanismScene {
     return animating;
   }
 
+  /** Current rotation angle of every kinematic body (rad). */
+  bodyAngles(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const id of this.bodies.keys()) out[id] = this.bodyAngle(id);
+    return out;
+  }
+
   private bodyAngle(bodyId?: string): number {
     if (!bodyId) return 0;
     return this.inputAngle * (this.bodies.get(bodyId)?.factor ?? 0);
@@ -249,6 +256,88 @@ export class MechanismScene {
       const n = speeds?.get(b.id) ?? b.factor;
       b.arrow.visible = visible && n !== 0;
       b.arrow.scale.y = n < 0 ? -1 : 1;
+    }
+  }
+
+  private stressSaved = new Map<THREE.MeshStandardMaterial, { color: THREE.Color; metalness: number; roughness: number; envMapIntensity: number }>();
+
+  /**
+   * Colours parts by a stress field (per vertex). `fields` maps part id → function of a point in the
+   * part's frame (body frame for rotating parts, world for static ones) → [r, g, b].
+   * Parts without a field are faded. Pass null to restore the normal look.
+   */
+  paintStress(fields: Map<string, (p: [number, number, number]) => [number, number, number]> | null): void {
+    // Restore first.
+    for (const p of this.parts.values()) {
+      for (const m of p.meshes) {
+        if (m.geometry.getAttribute('color')) m.geometry.deleteAttribute('color');
+      }
+      for (const s of p.mats) {
+        const saved = this.stressSaved.get(s.mat);
+        if (saved) {
+          s.mat.color.copy(saved.color);
+          s.mat.metalness = saved.metalness;
+          s.mat.roughness = saved.roughness;
+          s.mat.envMapIntensity = saved.envMapIntensity;
+        }
+        s.mat.vertexColors = false;
+        s.mat.toneMapped = true;
+        s.mat.opacity = s.opacity;
+        s.mat.transparent = s.transparent;
+        s.mat.depthWrite = s.depthWrite;
+        s.mat.emissive.setRGB(0, 0, 0);
+        s.mat.needsUpdate = true;
+      }
+    }
+    this.stressSaved.clear();
+    if (!fields) return;
+
+    this.root.updateMatrixWorld(true);
+    const v = new THREE.Vector3();
+    for (const [id, p] of this.parts) {
+      const field = fields.get(id);
+      if (!field) {
+        for (const s of p.mats) {
+          s.mat.transparent = true;
+          s.mat.opacity = Math.min(s.opacity, 0.12);
+          s.mat.depthWrite = false;
+          s.mat.needsUpdate = true;
+        }
+        continue;
+      }
+      const frameInv = p.def.body ? this.bodies.get(p.def.body)!.pivot.matrixWorld.clone().invert() : new THREE.Matrix4();
+      for (const mesh of p.meshes) {
+        const pos = mesh.geometry.getAttribute('position');
+        const colors = new Float32Array(pos.count * 3);
+        const toFrame = frameInv.clone().multiply(mesh.matrixWorld);
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(toFrame);
+          const c = field([v.x, v.y, v.z]);
+          colors[3 * i] = c[0];
+          colors[3 * i + 1] = c[1];
+          colors[3 * i + 2] = c[2];
+        }
+        mesh.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      }
+      for (const s of p.mats) {
+        this.stressSaved.set(s.mat, {
+          color: s.mat.color.clone(),
+          metalness: s.mat.metalness,
+          roughness: s.mat.roughness,
+          envMapIntensity: s.mat.envMapIntensity,
+        });
+        s.mat.vertexColors = true;
+        s.mat.toneMapped = false;
+        s.mat.color.setRGB(1, 1, 1);
+        // Matte, so the colours read the same from every angle.
+        s.mat.metalness = 0;
+        s.mat.roughness = 0.75;
+        s.mat.envMapIntensity = 0.4;
+        s.mat.opacity = 1;
+        s.mat.transparent = false;
+        s.mat.depthWrite = true;
+        s.mat.needsUpdate = true;
+      }
     }
   }
 

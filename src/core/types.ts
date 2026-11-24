@@ -267,8 +267,42 @@ export interface CloseUpDef {
   facts(inputRpm: number): LabValue[];
 }
 
+/** Stress field of one part. `stress(p)` gets a point in the part's frame (body frame for rotating parts). */
+export interface StressField {
+  partId: string;
+  /** Allowable stress used for the utilisation colour scale, MPa. */
+  allowable: number;
+  stress(p: Vec3): number;
+}
+
+/** A 2D plot drawn in the panel (e.g. the finite element mesh of a tooth). */
+export interface StressPlot {
+  label: LText;
+  /** `colour(t)` maps a normalised value 0…1 (the plot chooses its own scale) to a CSS colour. */
+  draw(ctx: CanvasRenderingContext2D, w: number, h: number, colour: (t: number) => string): void;
+}
+
+export interface StressResult {
+  fields: StressField[];
+  checks: StrengthCheck[];
+  plots: StressPlot[];
+  values: LabValue[];
+  warnings: LabWarning[];
+}
+
+/** Optional stress analysis (FEM / analytical) that colours the 3D parts. */
+export interface StressDef {
+  title: LText;
+  intro: LText;
+  params: LabParam[];
+  /** `bodyAngles`: current rotation of each kinematic body (rad), to find e.g. the loaded tooth. */
+  evaluate(values: Record<string, number>, inputRpm: number, bodyAngles: Record<string, number>): StressResult;
+}
+
 export interface Mechanism {
   kind: 'mechanism';
+  /** Optional stress analysis that colours the parts. */
+  stress?: StressDef;
   /** Optional close-up of the working zone with a live overlay. */
   closeUp?: CloseUpDef;
   /** Optional parameter lab for the Model tab. */
