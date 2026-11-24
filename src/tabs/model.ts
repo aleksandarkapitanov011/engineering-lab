@@ -541,6 +541,9 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     forcesBtn?.setAttribute('aria-pressed', String(p === 'forces'));
     closeUpBtn?.setAttribute('aria-pressed', String(p === 'closeup'));
     stressBtn?.setAttribute('aria-pressed', String(p === 'stress'));
+    // Static analysis: rotating would move the loaded tooth away from its colours.
+    playBtn.disabled = p === 'stress';
+    playBtn.title = p === 'stress' ? t('stressPaused') : '';
     if (was === 'stress' && p !== 'stress') {
       scene?.paintStress(null);
       playing = playingBeforeStress;

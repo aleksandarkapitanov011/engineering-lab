@@ -8,6 +8,7 @@ import type { Mechanism, PartDef, Vec3 } from '../core/types';
 import { speedFactors } from '../core/kinematics';
 import { createGhostKit, createMaterialKit } from './materials';
 import { merge } from './geom';
+import { srgbToLinear } from './colormap';
 
 interface MatState {
   mat: THREE.MeshStandardMaterial;
@@ -267,6 +268,7 @@ export class MechanismScene {
    * Parts without a field are faded. Pass null to restore the normal look.
    */
   paintStress(fields: Map<string, (p: [number, number, number]) => [number, number, number]> | null): void {
+    // `fields` return sRGB colours (0…1).
     // Restore first.
     for (const p of this.parts.values()) {
       for (const m of p.meshes) {
@@ -312,10 +314,11 @@ export class MechanismScene {
         const toFrame = frameInv.clone().multiply(mesh.matrixWorld);
         for (let i = 0; i < pos.count; i++) {
           v.fromBufferAttribute(pos, i).applyMatrix4(toFrame);
+          // Fields return sRGB; WebGL vertex colours are linear.
           const c = field([v.x, v.y, v.z]);
-          colors[3 * i] = c[0];
-          colors[3 * i + 1] = c[1];
-          colors[3 * i + 2] = c[2];
+          colors[3 * i] = srgbToLinear(c[0]);
+          colors[3 * i + 1] = srgbToLinear(c[1]);
+          colors[3 * i + 2] = srgbToLinear(c[2]);
         }
         mesh.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       }
@@ -328,11 +331,11 @@ export class MechanismScene {
         });
         s.mat.vertexColors = true;
         s.mat.toneMapped = false;
-        s.mat.color.setRGB(1, 1, 1);
-        // Matte, so the colours read the same from every angle.
+        // Matte and slightly dimmed, so lit faces don't clip to white and the colours stay saturated.
+        s.mat.color.setRGB(0.8, 0.8, 0.8);
         s.mat.metalness = 0;
-        s.mat.roughness = 0.75;
-        s.mat.envMapIntensity = 0.4;
+        s.mat.roughness = 0.88;
+        s.mat.envMapIntensity = 0.22;
         s.mat.opacity = 1;
         s.mat.transparent = false;
         s.mat.depthWrite = true;
