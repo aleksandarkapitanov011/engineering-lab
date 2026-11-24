@@ -5,7 +5,7 @@
  *   - forces & strength check (3D force arrows, safety factors).
  */
 import type { AppContext, TabSpec, TabView } from '../app/context';
-import type { ForcesDef, LabDef, LabParam, LabResult, Mechanism, PartDef, StrengthCheck } from '../core/types';
+import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, Mechanism, PartDef, StrengthCheck } from '../core/types';
 import { solveSpeeds } from '../core/kinematics';
 import { fmt, lt, t } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
@@ -14,6 +14,10 @@ import { ForceArrows } from '../three/forceArrows';
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
+import { GearSound } from '../ui/gearSound';
+
+/** Extra slow motion in the close-up so the contact can be followed by eye. */
+const CLOSEUP_SLOWDOWN = 10;
 
 export const VISUAL_SCALE = 1 / 30;
 
@@ -250,7 +254,70 @@ function createForcesPanel(
   return { el, refresh };
 }
 
-type Panel = 'none' | 'part' | 'lab' | 'forces';
+/** Close-up panel: live contact count, facts and the sound switch. */
+function createCloseUpPanel(
+  getDef: () => CloseUpDef | undefined,
+  getRpm: () => number,
+  sound: GearSound,
+  onSoundChange: () => void,
+): { el: HTMLElement; refresh(): void; setContacts(n: number): void } {
+  const first = getDef()!;
+  const pairs = h('div', { class: 'cu-pairs' }, h('span', { class: 'cu-pairs-n' }, '–'), h('span', null, t('cuPairs')));
+  const factsEl = h('dl', { class: 'lab-values' });
+  const soundBtn = h('button', { class: 'btn cu-sound', 'aria-pressed': 'false' });
+  const volume = h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: 0.5, 'aria-label': t('cuVolume') }) as HTMLInputElement;
+  const paint = (): void => {
+    soundBtn.replaceChildren(fromHTML(sound.enabled ? icons.soundOn : icons.soundOff), sound.enabled ? t('cuSoundOff') : t('cuSoundOn'));
+    soundBtn.setAttribute('aria-pressed', String(sound.enabled));
+    soundBtn.classList.toggle('primary', !sound.enabled);
+  };
+  soundBtn.addEventListener('click', () => {
+    if (sound.enabled) sound.stop();
+    else sound.start();
+    paint();
+    onSoundChange();
+  });
+  volume.addEventListener('input', () => {
+    sound.setVolume(Number(volume.value));
+    onSoundChange();
+  });
+  paint();
+  const el = h(
+    'div',
+    { class: 'lab' },
+    h('p', { class: 'lab-intro' }, lt(first.intro)),
+    pairs,
+    h('div', { class: 'cu-legend' },
+      h('span', null, h('i', { style: 'background:#ff7a1a' }), t('cuActive')),
+      h('span', null, h('i', { class: 'dot' }), t('cuContact')),
+      h('span', null, h('i', { style: 'background:#9aa6b2' }), t('cuBase')),
+      h('span', null, h('i', { style: 'background:#fff' }), t('cuPitch')),
+    ),
+    first.sound ? h('div', { class: 'info-label', style: 'margin-top:12px' }, t('cuSound')) : null,
+    first.sound ? h('div', { class: 'cu-sound-row' }, soundBtn, volume) : null,
+    first.sound ? h('p', { class: 'lab-hint' }, t('cuSoundNote')) : null,
+    h('div', { class: 'info-label', style: 'margin-top:12px' }, t('cuFacts')),
+    factsEl,
+  );
+  let last = -1;
+  return {
+    el,
+    refresh() {
+      const def = getDef();
+      if (!def) return;
+      factsEl.replaceChildren(...def.facts(getRpm()).flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+      paint();
+    },
+    setContacts(n) {
+      if (n === last) return;
+      last = n;
+      pairs.querySelector('.cu-pairs-n')!.textContent = String(n);
+      pairs.classList.toggle('two', n >= 2);
+    },
+  };
+}
+
+type Panel = 'none' | 'part' | 'lab' | 'forces' | 'closeup';
 
 function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const viewport = h('div', { class: 'viewport' });
@@ -294,7 +361,10 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const sectionBtn = toolBtn(icons.section, t('section'));
   const labBtn = base.lab ? toolBtn(icons.sliders, t('lab'), true) : null;
   const forcesBtn = base.forces ? toolBtn(icons.forces, t('forces')) : null;
-  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn);
+  const closeUpBtn = base.closeUp ? toolBtn(icons.mesh, t('closeUp')) : null;
+  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn);
+  const sound = new GearSound();
+  let overlay: CloseUpOverlay | null = null;
 
   const playBtn = h('button', { class: 'play-btn', 'aria-label': t('pause') });
   const slider = h('input', {
@@ -353,7 +423,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }
     playBtn.innerHTML = playing ? icons.pause : icons.play;
     playBtn.setAttribute('aria-label', playing ? t('pause') : t('play'));
-    scene?.setArrows(rpm > 0 && panel !== 'forces', shown);
+    scene?.setArrows(rpm > 0 && panel !== 'forces' && panel !== 'closeup', shown);
     viewer?.requestRender();
   };
 
@@ -365,12 +435,38 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     if (refit) viewer.viewFrom(dir ?? viewer.viewDirection(), mech.camera.target, radius * zoomOut, true);
   };
 
+  const updateSound = (): void => {
+    const def = mech.closeUp;
+    sound.update(panel === 'closeup' && def?.sound ? def.sound(rpm) : null, playing && rpm > 0);
+  };
+
+  /** Creates (or recreates after a lab change) the close-up overlay in the scene. */
+  const syncOverlay = (): void => {
+    overlay?.dispose();
+    overlay = null;
+    if (panel !== 'closeup' || !viewer || !mech.closeUp) return;
+    overlay = mech.closeUp.createOverlay();
+    viewer.scene.add(overlay.object);
+    viewer.requestRender();
+  };
+
   const setPanel = (p: Panel): void => {
+    const was = panel;
     panel = p;
     labBtn?.setAttribute('aria-pressed', String(p === 'lab'));
     forcesBtn?.setAttribute('aria-pressed', String(p === 'forces'));
+    closeUpBtn?.setAttribute('aria-pressed', String(p === 'closeup'));
     hint.classList.toggle('hidden', p !== 'none');
     if (arrows) arrows.group.visible = p === 'forces';
+    if (was === 'closeup' && p !== 'closeup') {
+      sound.stop();
+      if (viewer) viewer.controls.minDistance = 60;
+      // A part selection applies its own highlight, which already resets every material.
+      if (p !== 'part') scene?.focus(null);
+    }
+    if (p === 'closeup') scene?.focus(mech.closeUp?.focusParts ?? null);
+    syncOverlay();
+    updateSound();
     updateReadouts();
   };
 
@@ -385,6 +481,10 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
           viewer?.requestRender();
         },
       )
+    : null;
+
+  const closeUpPanel = base.closeUp
+    ? createCloseUpPanel(() => mech.closeUp, () => rpm, sound, updateSound)
     : null;
 
   const labPanel = base.lab
@@ -435,7 +535,23 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     window.setTimeout(() => updateInsets(true, [0.32, 0.28, 1], 1.45), 300);
   };
 
+  const openCloseUp = (): void => {
+    if (!base.closeUp || !closeUpPanel) return;
+    clearSelection();
+    setPanel('closeup');
+    closeUpPanel.refresh();
+    sheet.open(lt(base.closeUp.title), closeUpPanel.el, { kicker: lt(base.title) });
+    if (viewer) viewer.controls.minDistance = 8;
+    window.setTimeout(() => {
+      const cu = mech.closeUp;
+      if (!viewer || !cu || panel !== 'closeup') return;
+      updateInsets();
+      viewer.viewFrom(cu.camera.dir, cu.camera.target, cu.camera.radius, true);
+    }, 300);
+  };
+
   labBtn?.addEventListener('click', () => (panel === 'lab' ? sheet.close() : openLab()));
+  closeUpBtn?.addEventListener('click', () => (panel === 'closeup' ? sheet.close() : openCloseUp()));
   forcesBtn?.addEventListener('click', () => (panel === 'forces' ? sheet.close() : openForces()));
 
   sheet.onClose(() => {
@@ -443,17 +559,23 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     setPanel('none');
     clearSelection();
     viewer?.requestRender();
-    updateInsets(was === 'lab' || was === 'forces');
+    if (was === 'closeup') updateInsets(true, mech.camera.views.iso);
+    else updateInsets(was === 'lab' || was === 'forces');
   });
 
   playBtn.addEventListener('click', () => {
     playing = !playing;
     updateReadouts();
+    updateSound();
   });
   slider.addEventListener('input', () => {
     rpm = Number(slider.value);
     updateReadouts();
     if (panel === 'forces') forcesPanel?.refresh();
+    if (panel === 'closeup') {
+      closeUpPanel?.refresh();
+      updateSound();
+    }
   });
   explodeBtn.addEventListener('click', () => {
     exploded = !exploded;
@@ -490,6 +612,14 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     if (selected && mech.parts.some((p) => p.id === selected)) scene.highlight(selected);
     else selected = null;
     if (panel === 'forces') forcesPanel?.refresh();
+    if (panel === 'closeup') {
+      scene.focus(mech.closeUp?.focusParts ?? null);
+      syncOverlay();
+      closeUpPanel?.refresh();
+      updateSound();
+      const cu = mech.closeUp;
+      if (cu) viewer.viewFrom(cu.camera.dir, cu.camera.target, cu.camera.radius, true);
+    }
     updateReadouts();
     viewer.requestRender();
   }
@@ -509,13 +639,17 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       arrows.group.visible = panel === 'forces';
       updateInsets();
       buildScene(true);
+      syncOverlay();
+      if (panel === 'closeup') viewer.controls.minDistance = 8;
       const v = viewer;
       cleanups.push(
         v.addFrameHandler((dt) => {
           const s = scene;
           if (!s) return false;
-          if (playing && rpm > 0) s.advance(dt, rpm, VISUAL_SCALE);
+          const slow = panel === 'closeup' ? CLOSEUP_SLOWDOWN : 1;
+          if (playing && rpm > 0) s.advance(dt, rpm, VISUAL_SCALE / slow);
           const anim = s.update(dt);
+          if (overlay) closeUpPanel?.setContacts(overlay.update(s.inputAngle).contacts);
           return anim || (playing && rpm > 0);
         }),
         v.onTap((e) => {
@@ -535,6 +669,9 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       if (scene) inputAngle = scene.inputAngle;
       scene?.dispose();
       arrows?.dispose();
+      overlay?.dispose();
+      overlay = null;
+      sound.stop();
       viewer?.dispose();
       scene = null;
       arrows = null;
@@ -542,6 +679,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     },
     dispose() {
       sheet.close();
+      sound.dispose();
     },
   };
 }

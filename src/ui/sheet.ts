@@ -1,4 +1,4 @@
-import { h } from './dom';
+import { h, capturePointer } from './dom';
 import { icons } from './icons';
 import { t } from '../i18n';
 
@@ -50,7 +50,7 @@ export function createSheet(host: HTMLElement): Sheet {
     startY = e.clientY;
     dy = 0;
     el.style.transition = 'none';
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    capturePointer(e.target as Element, e.pointerId);
   };
   const onMove = (e: PointerEvent): void => {
     if (!dragging) return;

@@ -61,3 +61,12 @@ export function toast(text: string, kind: 'info' | 'error' | 'ok' = 'info', ms =
   window.clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => el!.classList.remove('show'), ms);
 }
+
+/** setPointerCapture that never throws (the pointer may already be gone, e.g. after a cancel). */
+export function capturePointer(el: Element, pointerId: number): void {
+  try {
+    el.setPointerCapture(pointerId);
+  } catch {
+    /* ignore */
+  }
+}

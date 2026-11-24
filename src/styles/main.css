@@ -1502,3 +1502,75 @@ input[type='range'] {
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Gear mesh close-up panel ---------- */
+
+.cu-pairs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.cu-pairs-n {
+  min-width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent-ink);
+  background: var(--accent);
+  transition: transform 0.15s;
+}
+
+.cu-pairs.two .cu-pairs-n {
+  background: var(--ok);
+  color: #06210f;
+  transform: scale(1.08);
+}
+
+.cu-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.cu-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cu-legend i {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.cu-legend i.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.cu-sound-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cu-sound-row input[type='range'] {
+  flex: 1;
+}

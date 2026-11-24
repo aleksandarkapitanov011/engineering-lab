@@ -8,7 +8,7 @@ import type { ForceArrow } from '../core/types';
 const MIN_LEN = 12;
 const MAX_LEN = 58;
 
-function labelSprite(text: string, color: string): THREE.Sprite {
+export function labelSprite(text: string, color: string, height = 7.5): THREE.Sprite {
   const scale = 2;
   const font = `700 ${26 * scale}px system-ui, "Segoe UI", Roboto, sans-serif`;
   const c = document.createElement('canvas');
@@ -33,7 +33,6 @@ function labelSprite(text: string, color: string): THREE.Sprite {
   tex.colorSpace = THREE.SRGBColorSpace;
   const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
   const s = new THREE.Sprite(mat);
-  const height = 7.5;
   s.scale.set((height * w) / h, height, 1);
   s.renderOrder = 31;
   return s;

@@ -4,7 +4,7 @@
 import type { TabSpec, TabView } from '../app/context';
 import type { Mechanism } from '../core/types';
 import { lt, t } from '../i18n';
-import { h } from '../ui/dom';
+import { h, capturePointer } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
 
@@ -116,7 +116,7 @@ function createDrawingTab(mech: Mechanism): TabView {
   let lastTap = 0;
 
   stage.addEventListener('pointerdown', (e) => {
-    stage.setPointerCapture(e.pointerId);
+    capturePointer(stage, e.pointerId);
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     paper.style.willChange = 'transform';
     if (pts.size === 1) gesture = { moved: 0, startX: e.clientX, startY: e.clientY, pinchDist: 0, multi: false };

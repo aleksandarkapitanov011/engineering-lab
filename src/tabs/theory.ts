@@ -10,7 +10,7 @@ import type { TabSpec, TabView } from '../app/context';
 import type { IllustrationHandle, Mechanism, TheoryPage } from '../core/types';
 import { storage } from '../core/storage';
 import { lt, t } from '../i18n';
-import { h, fromHTML } from '../ui/dom';
+import { h, fromHTML, capturePointer } from '../ui/dom';
 import { icons } from '../ui/icons';
 import {
   arrowRight,
@@ -429,7 +429,7 @@ function createTheoryTab(mech: Mechanism): TabView {
       if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
         drag.turn = beginTurn(dx < 0 ? 1 : -1);
         drag.mode = 'turn';
-        if (drag.turn) book.setPointerCapture(e.pointerId);
+        if (drag.turn) capturePointer(book, e.pointerId);
       } else if (Math.abs(dy) > 10) {
         drag.mode = 'scroll';
       }

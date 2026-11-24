@@ -10,7 +10,7 @@ import { fmt, lt, t } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
 import { MechanismScene } from '../three/mechanismScene';
 import { renderThumbnails } from '../three/thumbnails';
-import { h, fromHTML, pulseClass } from '../ui/dom';
+import { h, fromHTML, pulseClass, capturePointer } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { showDialog } from '../ui/sheet';
 
@@ -221,7 +221,7 @@ function createAssembleTab(mech: Mechanism, ctx: AppContext): TabView {
       start = { x: e.clientX, y: e.clientY, pid: e.pointerId };
       dragging = false;
       // Touch pointers are captured implicitly; do the same for mouse/pen so moves outside the card arrive.
-      card.setPointerCapture(e.pointerId);
+      capturePointer(card, e.pointerId);
     });
     card.addEventListener('pointermove', (e) => {
       if (!start || e.pointerId !== start.pid) return;
@@ -229,7 +229,7 @@ function createAssembleTab(mech: Mechanism, ctx: AppContext): TabView {
       const dy = e.clientY - start.y;
       if (!dragging && dy < -14 && Math.abs(dy) > Math.abs(dx)) {
         dragging = true;
-        card.setPointerCapture(e.pointerId);
+        capturePointer(card, e.pointerId);
         startTimer();
         select(id);
         proxy = h('div', { class: 'drag-proxy' });

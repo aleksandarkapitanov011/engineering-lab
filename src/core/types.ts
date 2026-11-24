@@ -248,8 +248,40 @@ export interface ForcesDef {
   evaluate(values: Record<string, number>, inputRpm: number): ForcesResult;
 }
 
+/** Overlay drawn on top of the model in the close-up view, synced with the rotation. */
+export interface CloseUpOverlay {
+  object: THREE.Object3D;
+  /** Called every frame with the current input-shaft angle (rad). Returns live facts. */
+  update(inputAngle: number): { contacts: number };
+  dispose(): void;
+}
+
+/** Sound model for a running mechanism at a given input speed. */
+export interface MechanismSound {
+  /** Main tone, Hz (e.g. gear mesh frequency). */
+  fundamental: number;
+  /** Relative amplitudes of harmonics 1, 2, 3 … */
+  harmonics: number[];
+  /** Amplitude-modulation frequency, Hz (e.g. shaft rotation). */
+  modulation: number;
+}
+
+/** Optional close-up of the working zone (e.g. the gear mesh) with overlay and sound. */
+export interface CloseUpDef {
+  title: LText;
+  intro: LText;
+  camera: { target: Vec3; dir: Vec3; radius: number };
+  /** Parts kept fully visible in the close-up; the rest is faded so it does not hide the zone. */
+  focusParts?: string[];
+  createOverlay(): CloseUpOverlay;
+  facts(inputRpm: number): LabValue[];
+  sound?(inputRpm: number): MechanismSound;
+}
+
 export interface Mechanism {
   kind: 'mechanism';
+  /** Optional close-up of the working zone with live overlay and sound. */
+  closeUp?: CloseUpDef;
   /** Optional parameter lab for the Model tab. */
   lab?: LabDef;
   /** Optional forces & strength check for the Model tab. */

@@ -127,6 +127,64 @@ export function gearOutline(o: OutlineOptions): Pt[] {
   return pts;
 }
 
+export interface LineOfAction {
+  /** Base radius of the pinion. */
+  rb1: number;
+  /** Tangent point on the pinion base circle (pinion centre at the origin, gear on +x). */
+  T1: Pt;
+  /** Unit direction of the line of action from T1 towards T2 (pinion turning counter-clockwise). */
+  dir: Pt;
+  /** Length T1–T2 = a·sin α. */
+  L: number;
+  /** Start (gear tip circle) and end (pinion tip circle) of the active path, measured from T1. */
+  sA: number;
+  sE: number;
+  /** Half angle of a pinion tooth at the base circle (incl. backlash and profile shift). */
+  psiB: number;
+  alpha: number;
+  z1: number;
+}
+
+/** Line of action of an external pair with x1 = −x2 (standard centre distance). */
+export function lineOfAction(m: number, z1: number, z2: number, alphaDeg = 20, x1 = 0, backlash = 0): LineOfAction {
+  const g1 = gearDims(m, z1, alphaDeg, x1);
+  const g2 = gearDims(m, z2, alphaDeg, -x1);
+  const a = centreDistance(m, z1, z2);
+  const al = g1.alpha;
+  const rb1 = g1.db / 2;
+  const rb2 = g2.db / 2;
+  const L = a * Math.sin(al);
+  const rp1 = g1.d / 2;
+  return {
+    rb1,
+    T1: [rb1 * Math.cos(al), -rb1 * Math.sin(al)],
+    dir: [Math.sin(al), Math.cos(al)],
+    L,
+    sA: L - Math.sqrt((g2.da / 2) ** 2 - rb2 * rb2),
+    sE: Math.sqrt((g1.da / 2) ** 2 - rb1 * rb1),
+    psiB: g1.s / (2 * rp1) - backlash / 2 / rp1 + inv(al),
+    alpha: al,
+    z1,
+  };
+}
+
+/**
+ * Distances (from T1 along the line of action) of the contact points on the driving flanks
+ * when the pinion has turned by `phi` (rad, counter-clockwise). Only points on the active path A–E.
+ */
+export function contactDistances(loa: LineOfAction, phi: number): number[] {
+  const out: number[] = [];
+  const step = (2 * Math.PI) / loa.z1;
+  for (let k = 0; k < loa.z1; k++) {
+    let t = (loa.psiB + phi + loa.alpha + k * step) % (2 * Math.PI);
+    if (t < -Math.PI) t += 2 * Math.PI;
+    if (t > Math.PI) t -= 2 * Math.PI;
+    const s = loa.rb1 * t;
+    if (s >= loa.sA - 1e-9 && s <= loa.sE + 1e-9) out.push(s);
+  }
+  return out.sort((p, q) => p - q);
+}
+
 /** Phase for the mating gear placed on the +x side so that a tooth space faces tooth 0 of the pinion. */
 export const matingPhase = (z2: number): number => Math.PI + Math.PI / z2;
 

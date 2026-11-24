@@ -252,6 +252,22 @@ export class MechanismScene {
     }
   }
 
+  /** Keeps the given parts as they are and fades everything else (no emissive glow). */
+  focus(ids: string[] | null): void {
+    this.highlighted = null;
+    for (const [pid, p] of this.parts) {
+      const keep = ids === null || ids.includes(pid);
+      for (const s of p.mats) {
+        s.mat.opacity = keep ? s.opacity : Math.min(s.opacity, 0.1);
+        s.mat.transparent = keep ? s.transparent : true;
+        s.mat.depthWrite = keep ? s.depthWrite : false;
+        s.mat.emissive.setRGB(0, 0, 0);
+        s.mat.needsUpdate = true;
+      }
+      for (const m of p.meshes) m.castShadow = keep && !p.mats[0]?.transparent;
+    }
+  }
+
   highlight(id: string | null): void {
     this.highlighted = id;
     for (const [pid, p] of this.parts) {
