@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AssemblyEngine, computeStars, isBetterScore, validateSteps } from '../src/core/assembly';
+import { finalScore } from '../src/tabs/assemble';
 import type { AssemblyStep } from '../src/core/types';
 import { assembly } from '../src/mechanisms/spur-gear/assembly';
 
@@ -10,19 +11,19 @@ describe('assembly engine', () => {
     expect(validateSteps(assembly.steps, ['base'])).toEqual([]);
   });
 
-  it('rejects the pinion before the key and explains why', () => {
+  it('a gear without its key is accepted, but the key is lost for good', () => {
     const e = new AssemblyEngine(assembly.steps, ['base']);
     expect(e.tryInstall('shaft1').ok).toBe(true);
     const r = e.tryInstall('pinion');
-    expect(r.ok).toBe(false);
-    if (!r.ok && r.reason === 'missing-prerequisites') {
-      expect(r.missing).toEqual(['key1']);
-      expect(r.step.hint.bg).toMatch(/шпонката/);
-    } else {
-      throw new Error('expected missing-prerequisites');
-    }
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.skipped).toEqual(['key1']);
+    expect(e.isSkipped('key1')).toBe(true);
+    expect(e.tryInstall('key1')).toEqual({ ok: false, reason: 'skipped' });
     expect(e.mistakes).toBe(1);
-    expect(e.isInstalled('pinion')).toBe(false);
+    // The rest can still be finished: the skipped key counts as done.
+    for (const id of ['brg1A', 'brg1B', 'shaft2', 'key2', 'gear2', 'brg2A', 'brg2B']) expect(e.tryInstall(id).ok).toBe(true);
+    expect(e.isComplete()).toBe(true);
+    expect(e.skipped()).toEqual(['key1']);
   });
 
   it('rejects bearing B before the gear it must sit next to', () => {
@@ -51,7 +52,7 @@ describe('assembly engine', () => {
     const e = new AssemblyEngine(assembly.steps, ['base']);
     expect(e.available().sort()).toEqual(['shaft1', 'shaft2']);
     e.tryInstall('shaft1');
-    expect(e.available().sort()).toEqual(['brg1A', 'key1', 'shaft2']);
+    expect(e.available().sort()).toEqual(['brg1A', 'key1', 'pinion', 'shaft2']);
   });
 
   it('does not install twice or unknown parts', () => {
@@ -88,5 +89,69 @@ describe('scoring', () => {
     expect(isBetterScore({ stars: 3, mistakes: 0, timeSec: 80 }, { stars: 2, mistakes: 0, timeSec: 10 })).toBe(true);
     expect(isBetterScore({ stars: 2, mistakes: 1, timeSec: 10 }, { stars: 2, mistakes: 0, timeSec: 99 })).toBe(false);
     expect(isBetterScore({ stars: 2, mistakes: 0, timeSec: 40 }, { stars: 2, mistakes: 0, timeSec: 50 })).toBe(true);
+  });
+});
+
+describe('disassembly', () => {
+  it('starts fully assembled and works from the outside in', () => {
+    const e = new AssemblyEngine(assembly.steps, ['base'], 'disassemble');
+    expect(e.isInstalled('pinion')).toBe(true);
+    const r = e.tryRemove('shaft1');
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.reason === 'blocked') expect(r.blockers.sort()).toEqual(['brg1A', 'key1', 'pinion']);
+    expect(e.mistakes).toBe(1);
+  });
+
+  it('the key comes out only after the gear, the gear only after bearing B', () => {
+    const e = new AssemblyEngine(assembly.steps, ['base'], 'disassemble');
+    expect(e.canRemove('key1')).toBe(false);
+    expect(e.canRemove('pinion')).toBe(false);
+    expect(e.tryRemove('brg1B').ok).toBe(true);
+    expect(e.tryRemove('pinion').ok).toBe(true);
+    expect(e.tryRemove('key1').ok).toBe(true);
+  });
+
+  it('reverse of a valid assembly order takes everything apart without mistakes', () => {
+    const e = new AssemblyEngine(assembly.steps, ['base'], 'disassemble');
+    const order = ['shaft2', 'brg2A', 'shaft1', 'key1', 'key2', 'gear2', 'pinion', 'brg1A', 'brg2B', 'brg1B'].reverse();
+    order.forEach((id, i) => {
+      const r = e.tryRemove(id);
+      expect(r.ok).toBe(true);
+      if (r.ok) expect(r.complete).toBe(i === order.length - 1);
+    });
+    expect(e.mistakes).toBe(0);
+    expect(e.tryRemove('base')).toEqual({ ok: false, reason: 'unknown-part' });
+  });
+});
+
+describe('tools and forgotten parts', () => {
+  it('every bearing, gear and key step asks for a tool with at least one right and one wrong choice', () => {
+    for (const s of assembly.steps.filter((x) => !x.partId.startsWith('shaft'))) {
+      for (const list of [s.mount, s.dismount]) {
+        expect(list?.some((c) => c.ok)).toBe(true);
+        expect(list?.some((c) => !c.ok)).toBe(true);
+      }
+    }
+  });
+
+  it('a hammer on the outer ring is the wrong way to mount a bearing', () => {
+    const brg = assembly.steps.find((s) => s.partId === 'brg1A')!;
+    const hammer = brg.mount!.find((c) => /чук/.test(c.label.bg))!;
+    expect(hammer.ok).toBe(false);
+    expect(hammer.why.bg).toMatch(/сачмите/);
+  });
+
+  it('a forgotten key stops the parts it should drive', () => {
+    const key1 = assembly.steps.find((s) => s.partId === 'key1')!;
+    expect(key1.optional!.stops).toContain('pinion');
+    expect(key1.optional!.stops).toContain('shaft2');
+    const key2 = assembly.steps.find((s) => s.partId === 'key2')!;
+    expect(key2.optional!.stops).toContain('shaft2');
+    expect(key2.optional!.stops).not.toContain('gear2');
+  });
+
+  it('a forgotten part caps the result at one star and counts as a mistake', () => {
+    expect(finalScore(0, 0, 60, 120).stars).toBe(3);
+    expect(finalScore(0, 1, 60, 120)).toEqual({ stars: 1, timeSec: 60, mistakes: 1 });
   });
 });

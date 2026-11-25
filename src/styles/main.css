@@ -1815,3 +1815,104 @@ input[type='range'] {
     direction: ltr;
   }
 }
+
+/* ---------- Assembly game: modes, tools, forgotten parts ---------- */
+.tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-right: 12px;
+}
+
+.tray-head .tray-label {
+  padding-bottom: 0;
+}
+
+.seg {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.seg-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.seg-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.part-card .card-tag {
+  display: none;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--err);
+}
+
+.part-card.skipped {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.part-card.skipped .card-tag {
+  display: block;
+}
+
+.tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-choice {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.tool-choice.wrong {
+  border-color: var(--err);
+  color: var(--err);
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.tool-why {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.tool-why:empty {
+  display: none;
+}
+
+.result-warn {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--err) 14%, transparent);
+  font-size: 14px;
+  text-align: left;
+}
+
+.result-warn p {
+  margin: 6px 0 0;
+}

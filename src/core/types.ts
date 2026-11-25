@@ -78,12 +78,32 @@ export interface Kinematics {
   links: KinematicLink[];
 }
 
+/** One way of mounting / removing a part, offered in the assembly game. */
+export interface ToolChoice {
+  label: LText;
+  ok: boolean;
+  /** Why it is right or wrong (shown after the choice). */
+  why: LText;
+}
+
 export interface AssemblyStep {
   partId: string;
   /** Part ids that must already be installed. */
   requires: string[];
   /** Explains WHY the order matters; shown when the user tries too early. */
   hint: LText;
+  /** Explains why the part cannot come off yet (disassembly). Defaults to a generic text. */
+  removeHint?: LText;
+  /** Ways to mount the part; the player picks one. At least one has ok = true. */
+  mount?: ToolChoice[];
+  /** Ways to remove the part in the disassembly game. */
+  dismount?: ToolChoice[];
+  /**
+   * A part that nothing physically forces into place (e.g. a key): once `lockedBy` is installed
+   * without it, it can no longer go in and the machine is finished without it. The consequence is
+   * shown when the finished mechanism runs: the parts in `stops` stand still.
+   */
+  optional?: { lockedBy: string; consequence: LText; stops: string[] };
 }
 
 export interface AssemblyDef {

@@ -57,6 +57,8 @@ export class MechanismScene {
   private highlighted: string | null = null;
   private ghost: { id: string; obj: THREE.Group; mat: THREE.MeshBasicMaterial; t: number } | null = null;
   inputAngle = 0;
+  /** Parts that stand still although their body turns (e.g. a gear slipping on a shaft without its key). */
+  private readonly frozen = new Map<string, number>();
 
   constructor(private readonly mech: Mechanism) {
     const kit = createMaterialKit();
@@ -216,8 +218,18 @@ export class MechanismScene {
     this.applyPose();
   }
 
+  /** Stops the given parts at their current angle while the rest keeps turning; [] releases them. */
+  setFrozen(ids: string[]): void {
+    this.frozen.clear();
+    for (const id of ids) {
+      const p = this.parts.get(id);
+      if (p) this.frozen.set(id, this.bodyAngle(p.def.body));
+    }
+    this.applyPose();
+  }
+
   private placeWrapper(def: PartDef, wrapper: THREE.Object3D, content: THREE.Object3D, k: number, away = 0): void {
-    const angle = this.bodyAngle(def.body);
+    const angle = this.frozen.get(def.id) ?? this.bodyAngle(def.body);
     const off = new THREE.Vector3(...def.explode.offset).multiplyScalar(k);
     if (def.explode.frame === 'spin') off.applyAxisAngle(new THREE.Vector3(0, 0, 1), angle);
     if (away > 0) {
