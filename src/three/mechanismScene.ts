@@ -4,7 +4,7 @@
  * Nothing in here is specific to a particular mechanism.
  */
 import * as THREE from 'three';
-import type { Mechanism, PartDef, Vec3 } from '../core/types';
+import type { BodyPose, Mechanism, PartDef, Vec3 } from '../core/types';
 import { speedFactors } from '../core/kinematics';
 import { createGhostKit, createMaterialKit } from './materials';
 import { merge } from './geom';
@@ -36,6 +36,8 @@ interface BodyInstance {
   id: string;
   pivot: THREE.Group;
   factor: number;
+  /** Extra rotation from a pose override (mounting error), rad. */
+  phase: number;
   arrow?: THREE.Mesh;
 }
 
@@ -67,7 +69,7 @@ export class MechanismScene {
       pivot.position.set(...b.origin);
       pivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(...b.axis).normalize());
       this.root.add(pivot);
-      const inst: BodyInstance = { id: b.id, pivot, factor: factors.get(b.id) ?? 0 };
+      const inst: BodyInstance = { id: b.id, pivot, factor: factors.get(b.id) ?? 0, phase: 0 };
       if (b.arrow) {
         inst.arrow = makeArrow(b.arrow.radius);
         inst.arrow.position.z = b.arrow.z;
@@ -199,7 +201,19 @@ export class MechanismScene {
 
   private bodyAngle(bodyId?: string): number {
     if (!bodyId) return 0;
-    return this.inputAngle * (this.bodies.get(bodyId)?.factor ?? 0);
+    const b = this.bodies.get(bodyId);
+    return b ? this.inputAngle * b.factor + b.phase : 0;
+  }
+
+  /** Moves / tilts a kinematic body (e.g. to show a mounting error). `null` restores the nominal pose. */
+  setBodyPose(bodyId: string, pose: BodyPose | null): void {
+    const b = this.bodies.get(bodyId);
+    const def = this.mech.kinematics.bodies.find((k) => k.id === bodyId);
+    if (!b || !def) return;
+    b.pivot.position.set(...(pose?.origin ?? def.origin));
+    b.pivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(...(pose?.axis ?? def.axis)).normalize());
+    b.phase = pose?.phase ?? 0;
+    this.applyPose();
   }
 
   private placeWrapper(def: PartDef, wrapper: THREE.Object3D, content: THREE.Object3D, k: number, away = 0): void {

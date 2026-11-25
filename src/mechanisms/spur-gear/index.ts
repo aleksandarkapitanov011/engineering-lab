@@ -12,6 +12,7 @@ import { createLab } from './lab';
 import { createForces } from './forces';
 import { createCloseUp } from './closeup';
 import { createStress } from './stress';
+import { createMounting } from './mounting';
 
 const thumbnail = (() => {
   const p1 = polygonPath(gearOutline({ m: 2, z: 20, backlash: 0.1 }), true);
@@ -87,6 +88,7 @@ export function mechanismFor(L: Layout): Mechanism {
     forces: createForces(L),
     closeUp: createCloseUp(L),
     stress: createStress(L),
+    mounting: createMounting(L),
   };
 }
 

@@ -5,7 +5,7 @@
  *   - forces & strength check (3D force arrows, safety factors).
  */
 import type { AppContext, TabSpec, TabView } from '../app/context';
-import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, Mechanism, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
+import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, Mechanism, MountingDef, MountingOverlay, MountingResult, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
 import { solveSpeeds } from '../core/kinematics';
 import { fmt, lt, t } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
@@ -405,7 +405,102 @@ function createStressPanel(
   return { el, refresh };
 }
 
-type Panel = 'none' | 'part' | 'lab' | 'forces' | 'closeup' | 'stress';
+/** Mounting-error panel: presets, sliders, contact pattern plot, warnings and values. */
+function createMountPanel(
+  getDef: () => MountingDef | undefined,
+  getRpm: () => number,
+  onResult: (r: MountingResult) => void,
+): { el: HTMLElement; refresh(): void } {
+  const first = getDef()!;
+  const values: Record<string, number> = {};
+  for (const p of first.params) values[p.id] = p.default;
+  const warningsEl = h('ul', { class: 'lab-warnings', 'aria-live': 'polite' });
+  const valuesEl = h('dl', { class: 'lab-values' });
+  const canvas = h('canvas', { class: 'fem-canvas mount-canvas', role: 'img', 'aria-label': t('mountPattern') }) as HTMLCanvasElement;
+  let last: MountingResult | null = null;
+  let timer = 0;
+
+  const draw = (): void => {
+    if (!last) return;
+    const w = canvas.clientWidth;
+    if (w === 0) {
+      requestAnimationFrame(draw);
+      return;
+    }
+    const hgt = 230;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(hgt * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    last.plot.draw(ctx, w, hgt, (v) => cssColour(rainbow(v)));
+  };
+
+  const refresh = (): void => {
+    const def = getDef();
+    if (!def) return;
+    const r = def.evaluate({ ...values }, getRpm());
+    last = r;
+    warningsEl.replaceChildren(...warningList(r.warnings));
+    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+    draw();
+    onResult(r);
+  };
+  const controls = paramControls(first.params, values, (immediate) => {
+    window.clearTimeout(timer);
+    if (immediate) refresh();
+    else timer = window.setTimeout(refresh, 40);
+  });
+  const presets = h(
+    'div',
+    { class: 'lab-presets' },
+    ...first.presets.map((pr) =>
+      h(
+        'button',
+        {
+          class: 'chip',
+          onclick: () => {
+            Object.assign(values, pr.values);
+            controls.sync();
+            refresh();
+          },
+        },
+        lt(pr.label),
+      ),
+    ),
+  );
+  const legend = h(
+    'div',
+    { class: 'mount-legend' },
+    h('div', { class: 'fem-legend-bar', style: 'background:' + legendGradient() }),
+    h('div', { class: 'fem-legend-labels' }, h('span', null, '0'), h('span', null, t('mountMean')), h('span', null, '2× ' + t('mountMean'))),
+    h(
+      'div',
+      { class: 'cu-legend' },
+      h('span', null, h('i', { style: 'background:#ff2d55' }), t('mountInterference')),
+      h('span', null, h('i', { style: 'background:#38c6ff' }), t('mountBacklash')),
+      h('span', null, h('i', { style: 'background:#d9e0e8;opacity:.5' }), t('mountNoContact')),
+    ),
+  );
+  const el = h(
+    'div',
+    { class: 'lab' },
+    h('p', { class: 'lab-intro' }, lt(first.intro)),
+    presets,
+    ...controls.els,
+    warningsEl,
+    h('div', { class: 'info-label', style: 'margin-top:12px' }, t('mountPattern')),
+    canvas,
+    legend,
+    h('p', { class: 'lab-hint' }, t('mountPatternNote')),
+    h('div', { class: 'info-label', style: 'margin-top:12px' }, t('labValues')),
+    valuesEl,
+  );
+  return { el, refresh };
+}
+
+type Panel = 'none' | 'part' | 'lab' | 'forces' | 'closeup' | 'stress' | 'mount';
 
 function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const viewport = h('div', { class: 'viewport' });
@@ -451,9 +546,12 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const forcesBtn = base.forces ? toolBtn(icons.forces, t('forces')) : null;
   const closeUpBtn = base.closeUp ? toolBtn(icons.mesh, t('closeUp')) : null;
   const stressBtn = base.stress ? toolBtn(icons.stress, t('stress')) : null;
-  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn);
+  const mountBtn = base.mounting ? toolBtn(icons.mount, t('mount')) : null;
+  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn, mountBtn);
   let playingBeforeStress = true;
   let overlay: CloseUpOverlay | null = null;
+  let mountOverlay: MountingOverlay | null = null;
+  let mountResult: MountingResult | null = null;
 
   const playBtn = h('button', { class: 'play-btn', 'aria-label': t('pause') });
   const slider = h('input', {
@@ -512,7 +610,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }
     playBtn.innerHTML = playing ? icons.pause : icons.play;
     playBtn.setAttribute('aria-label', playing ? t('pause') : t('play'));
-    scene?.setArrows(rpm > 0 && panel !== 'forces' && panel !== 'closeup' && panel !== 'stress', shown);
+    scene?.setArrows(rpm > 0 && (panel === 'none' || panel === 'part' || panel === 'lab'), shown);
     viewer?.requestRender();
   };
 
@@ -534,6 +632,25 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     viewer.requestRender();
   };
 
+  /** Applies (or clears) the mounting error: shifted / tilted body poses and the contact overlay. */
+  const syncMount = (): void => {
+    mountOverlay?.dispose();
+    mountOverlay = null;
+    const s = scene;
+    if (!s) return;
+    const bodies = mech.kinematics.bodies.map((b) => b.id);
+    if (panel !== 'mount' || !mountResult || !viewer) {
+      for (const id of bodies) s.setBodyPose(id, null);
+      viewer?.requestRender();
+      return;
+    }
+    for (const id of bodies) s.setBodyPose(id, mountResult.poses[id] ?? null);
+    mountOverlay = mountResult.createOverlay();
+    viewer.scene.add(mountOverlay.object);
+    mountOverlay.update(s.inputAngle);
+    viewer.requestRender();
+  };
+
   const setPanel = (p: Panel): void => {
     const was = panel;
     panel = p;
@@ -541,6 +658,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     forcesBtn?.setAttribute('aria-pressed', String(p === 'forces'));
     closeUpBtn?.setAttribute('aria-pressed', String(p === 'closeup'));
     stressBtn?.setAttribute('aria-pressed', String(p === 'stress'));
+    mountBtn?.setAttribute('aria-pressed', String(p === 'mount'));
     // Static analysis: rotating would move the loaded tooth away from its colours.
     playBtn.disabled = p === 'stress';
     playBtn.title = p === 'stress' ? t('stressPaused') : '';
@@ -551,13 +669,16 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }
     hint.classList.toggle('hidden', p !== 'none');
     if (arrows) arrows.group.visible = p === 'forces';
-    if (was === 'closeup' && p !== 'closeup') {
+    const zoomed = (q: Panel): boolean => q === 'closeup' || q === 'mount';
+    if (zoomed(was) && !zoomed(p)) {
       if (viewer) viewer.controls.minDistance = 60;
       // A part selection applies its own highlight, which already resets every material.
       if (p !== 'part') scene?.focus(null);
     }
     if (p === 'closeup') scene?.focus(mech.closeUp?.focusParts ?? null);
+    if (p === 'mount') scene?.focus(mech.mounting?.focusParts ?? null);
     syncOverlay();
+    if (was === 'mount' || p === 'mount') syncMount();
     updateReadouts();
   };
 
@@ -589,6 +710,17 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
           for (const f of r.fields) fields.set(f.partId, (p) => rainbow(scaleValue(mode, f.stress(p), f.allowable, max)));
           scene.paintStress(fields);
           viewer?.requestRender();
+        },
+      )
+    : null;
+
+  const mountPanel = base.mounting
+    ? createMountPanel(
+        () => mech.mounting,
+        () => rpm,
+        (r) => {
+          mountResult = r;
+          if (panel === 'mount') syncMount();
         },
       )
     : null;
@@ -658,6 +790,21 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }, 300);
   };
 
+  const openMount = (): void => {
+    if (!base.mounting || !mountPanel) return;
+    clearSelection();
+    setPanel('mount');
+    sheet.open(lt(base.mounting.title), mountPanel.el, { kicker: lt(base.title) });
+    mountPanel.refresh();
+    if (viewer) viewer.controls.minDistance = 4;
+    window.setTimeout(() => {
+      const md = mech.mounting;
+      if (!viewer || !md || panel !== 'mount') return;
+      updateInsets();
+      viewer.viewFrom(md.camera.dir, md.camera.target, md.camera.radius, true);
+    }, 300);
+  };
+
   const openStress = (): void => {
     if (!base.stress || !stressPanel) return;
     clearSelection();
@@ -672,6 +819,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   labBtn?.addEventListener('click', () => (panel === 'lab' ? sheet.close() : openLab()));
   stressBtn?.addEventListener('click', () => (panel === 'stress' ? sheet.close() : openStress()));
   closeUpBtn?.addEventListener('click', () => (panel === 'closeup' ? sheet.close() : openCloseUp()));
+  mountBtn?.addEventListener('click', () => (panel === 'mount' ? sheet.close() : openMount()));
   forcesBtn?.addEventListener('click', () => (panel === 'forces' ? sheet.close() : openForces()));
 
   sheet.onClose(() => {
@@ -679,7 +827,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     setPanel('none');
     clearSelection();
     viewer?.requestRender();
-    if (was === 'closeup') updateInsets(true, mech.camera.views.iso);
+    if (was === 'closeup' || was === 'mount') updateInsets(true, mech.camera.views.iso);
     else updateInsets(was === 'lab' || was === 'forces' || was === 'stress');
   });
 
@@ -693,6 +841,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     if (panel === 'forces') forcesPanel?.refresh();
     if (panel === 'closeup') closeUpPanel?.refresh();
     if (panel === 'stress') stressPanel?.refresh();
+    if (panel === 'mount') mountPanel?.refresh();
   });
   explodeBtn.addEventListener('click', () => {
     exploded = !exploded;
@@ -730,6 +879,12 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     else selected = null;
     if (panel === 'forces') forcesPanel?.refresh();
     if (panel === 'stress') stressPanel?.refresh();
+    if (panel === 'mount') {
+      scene.focus(mech.mounting?.focusParts ?? null);
+      mountPanel?.refresh();
+      const md = mech.mounting;
+      if (md) viewer.viewFrom(md.camera.dir, md.camera.target, md.camera.radius, true);
+    }
     if (panel === 'closeup') {
       scene.focus(mech.closeUp?.focusParts ?? null);
       syncOverlay();
@@ -757,16 +912,19 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       updateInsets();
       buildScene(true);
       syncOverlay();
+      syncMount();
       if (panel === 'closeup') viewer.controls.minDistance = 8;
+      if (panel === 'mount') viewer.controls.minDistance = 4;
       const v = viewer;
       cleanups.push(
         v.addFrameHandler((dt) => {
           const s = scene;
           if (!s) return false;
-          const slow = panel === 'closeup' ? CLOSEUP_SLOWDOWN : 1;
+          const slow = panel === 'closeup' || panel === 'mount' ? CLOSEUP_SLOWDOWN : 1;
           if (playing && rpm > 0) s.advance(dt, rpm, VISUAL_SCALE / slow);
           const anim = s.update(dt);
           if (overlay) closeUpPanel?.setContacts(overlay.update(s.inputAngle).contacts);
+          mountOverlay?.update(s.inputAngle);
           return anim || (playing && rpm > 0);
         }),
         v.onTap((e) => {
@@ -788,6 +946,8 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       arrows?.dispose();
       overlay?.dispose();
       overlay = null;
+      mountOverlay?.dispose();
+      mountOverlay = null;
       viewer?.dispose();
       scene = null;
       arrows = null;

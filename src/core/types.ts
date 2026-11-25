@@ -299,8 +299,47 @@ export interface StressDef {
   evaluate(values: Record<string, number>, inputRpm: number, bodyAngles: Record<string, number>): StressResult;
 }
 
+/** Pose override of a kinematic body (e.g. a mounting error): where its axis is and an extra rotation. */
+export interface BodyPose {
+  /** A point on the axis (world, mm). */
+  origin: Vec3;
+  axis: Vec3;
+  /** Extra rotation about the axis added to the kinematic angle (rad). */
+  phase: number;
+}
+
+/** 3D overlay of the mounting-error view, synced with the rotation. */
+export interface MountingOverlay {
+  object: THREE.Object3D;
+  update(inputAngle: number): void;
+  dispose(): void;
+}
+
+export interface MountingResult {
+  values: LabValue[];
+  warnings: LabWarning[];
+  /** Body poses that show the error in 3D (bodies not listed stay nominal). */
+  poses: Record<string, BodyPose>;
+  /** 2D drawing in the panel (e.g. the contact pattern on the flanks). */
+  plot: StressPlot;
+  createOverlay(): MountingOverlay;
+}
+
+/** Optional "mounting errors" view: wrong centre distance, inclined or skewed shafts. */
+export interface MountingDef {
+  title: LText;
+  intro: LText;
+  params: LabParam[];
+  presets: LabPreset[];
+  camera: { target: Vec3; dir: Vec3; radius: number };
+  focusParts?: string[];
+  evaluate(values: Record<string, number>, inputRpm: number): MountingResult;
+}
+
 export interface Mechanism {
   kind: 'mechanism';
+  /** Optional mounting-error view. */
+  mounting?: MountingDef;
   /** Optional stress analysis that colours the parts. */
   stress?: StressDef;
   /** Optional close-up of the working zone with a live overlay. */

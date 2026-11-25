@@ -1611,3 +1611,17 @@ input[type='range'] {
   border-radius: 12px;
   background: #15171b;
 }
+
+/* ---------- Mounting errors ---------- */
+.mount-canvas {
+  height: 230px;
+}
+
+.mount-legend {
+  margin: 8px 0 4px;
+}
+
+.mount-legend .fem-legend-bar,
+.mount-legend .fem-legend-labels {
+  margin-right: 0;
+}
