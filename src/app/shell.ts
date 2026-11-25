@@ -6,7 +6,7 @@ import { catalogue, getMechanism } from '../core/registry';
 import type { CatalogEntry, Mechanism } from '../core/types';
 import { entitlements } from '../core/entitlements';
 import { storage, type Theme } from '../core/storage';
-import { lt, t } from '../i18n';
+import { lang, lt, saveLang, t } from '../i18n';
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { showDialog } from '../ui/sheet';
@@ -87,6 +87,24 @@ export class Shell {
     return btn;
   }
 
+  /** BG / EN switch: saves the choice and reloads on the same screen, so every text is rebuilt. */
+  private langButton(): HTMLElement {
+    const other = lang() === 'bg' ? 'en' : 'bg';
+    return h(
+      'button',
+      {
+        class: 'icon-btn lang-btn',
+        'aria-label': t('switchLang'),
+        title: t('switchLang'),
+        onclick: () => {
+          saveLang(other);
+          location.reload();
+        },
+      },
+      other === 'en' ? 'EN' : 'БГ',
+    );
+  }
+
   private renderHome(): void {
     const grid = h('div', { class: 'catalogue' });
     for (const entry of catalogue()) grid.appendChild(this.card(entry));
@@ -102,7 +120,7 @@ export class Shell {
           h('div', { class: 'brand-mark', 'aria-hidden': 'true' }),
           h('div', null, h('h1', null, t('appName')), h('p', null, t('appTagline'))),
         ),
-        this.themeButton(),
+        h('div', { class: 'head-btns' }, this.langButton(), this.themeButton()),
       ),
       h('h2', { class: 'section-label' }, t('catalogue')),
       grid,
@@ -189,7 +207,7 @@ export class Shell {
         { class: 'mech-head' },
         h('a', { class: 'icon-btn', href: '#/', 'aria-label': t('back'), html: icons.back }),
         h('div', { class: 'mech-title' }, h('h1', null, lt(mech.title)), h('p', null, lt(mech.subtitle))),
-        this.themeButton(),
+        h('div', { class: 'head-btns' }, this.langButton(), this.themeButton()),
       );
       const root = h('div', { class: 'mech' }, header, content, tabbar);
       this.root.replaceChildren(root);

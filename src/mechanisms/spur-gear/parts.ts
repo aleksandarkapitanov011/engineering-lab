@@ -235,7 +235,7 @@ export function makeParts(L: Layout): PartDef[] {
     explode: { offset: [0, 0, 40], order: 1 },
     build: ({ materials }) => new THREE.Mesh(pinionGeometry(L), materials.paint(PINION_COLOR, 0.55, 0.35)),
     meta: {
-      name: txt(`Зъбно колело z₁ = ${z1} (малко)`, `Pinion z1 = ${z1}`),
+      name: txt(`Зъбно колело z₁ = ${z1} (малко)`, `Pinion z₁ = ${z1}`),
       material: txt('Стомана 40Cr, повърхностно закалени зъби 48–52 HRC'),
       func: txt(
         L.integral1
@@ -332,7 +332,7 @@ export function makeParts(L: Layout): PartDef[] {
     explode: { offset: [0, 0, 36], order: 1 },
     build: ({ materials }) => new THREE.Mesh(gearGeometry(L), materials.paint(GEAR_COLOR, 0.6, 0.38)),
     meta: {
-      name: txt(`Зъбно колело z₂ = ${z2} (голямо)`, `Gear z2 = ${z2}`),
+      name: txt(`Зъбно колело z₂ = ${z2} (голямо)`, `Gear z₂ = ${z2}`),
       material: txt('Стомана C45, подобрена 240–280 HB'),
       func: txt(
         `Задвижваното колело. Върти се в обратна посока с n₂ = n₁·${z1}/${z2}. Дискът с олекотяващи отвори намалява масата и инерцията.`,

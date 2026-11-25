@@ -4,13 +4,13 @@
  */
 import type { MeasureDef, MeasureSample } from '../core/types';
 import { storage } from '../core/storage';
-import { lt, t } from '../i18n';
+import { fmt, lt, t } from '../i18n';
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createMicrometerScale, readMicrometer } from '../ui/micrometer';
 
 export const BATCH = 5;
-const n2 = (v: number): string => v.toFixed(2).replace('.', ',');
+const n2 = (v: number): string => fmt(v, 2);
 
 /** Points: 1 for the reading, 1 for the decision. Stars: all right = 3, ≥ 80 % = 2, ≥ 50 % = 1. */
 export function measureStars(points: number, max: number): number {
@@ -106,10 +106,10 @@ export function createMeasurePanel(mechId: string, getDef: () => MeasureDef | un
   const controls = h(
     'div',
     { class: 'meas-controls' },
-    step('« 0,5', 0.5, t('measOpenHalf')),
-    step('+0,01', 0.01, '+0,01 mm'),
-    step('−0,01', -0.01, '−0,01 mm'),
-    step('» 0,5', -0.5, t('measCloseHalf')),
+    step(`« ${fmt(0.5, 1)}`, 0.5, t('measOpenHalf')),
+    step(`+${fmt(0.01, 2)}`, 0.01, `+${fmt(0.01, 2)} mm`),
+    step(`−${fmt(0.01, 2)}`, -0.01, `−${fmt(0.01, 2)} mm`),
+    step(`» ${fmt(0.5, 1)}`, -0.5, t('measCloseHalf')),
     h('button', { class: 'chip meas-ratchet', onclick: ratchet }, t('measRatchet')),
   );
 
@@ -192,7 +192,7 @@ export function createMeasurePanel(mechId: string, getDef: () => MeasureDef | un
         'div',
         { class: `meas-line ${readOk ? 'ok' : 'bad'}` },
         h('b', null, readOk ? t('measReadOk') : t('measReadBad')),
-        ` ${r.mm} mm ${t('measSleeve')}${r.half ? ' + 0,50' : ''} + ${r.thimble} × 0,01 = ${n2(s.actual)} mm`,
+        ` ${r.mm} mm ${t('measSleeve')}${r.half ? ` + ${n2(0.5)}` : ''} + ${r.thimble} × ${n2(0.01)} = ${n2(s.actual)} mm`,
       ),
       h(
         'div',

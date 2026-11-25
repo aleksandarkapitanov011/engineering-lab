@@ -7,7 +7,7 @@
 import type { AppContext, TabSpec, TabView } from '../app/context';
 import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, MeasureOverlay, Mechanism, MountingDef, MountingOverlay, MountingResult, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
 import { solveSpeeds } from '../core/kinematics';
-import { fmt, lt, t } from '../i18n';
+import { fmt, lt, t, tr } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
 import { MechanismScene } from '../three/mechanismScene';
 import { ForceArrows } from '../three/forceArrows';
@@ -17,6 +17,18 @@ import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
 import { createMeasurePanel } from './measurePanel';
 
+/** Canvas plots of the mechanisms write Bulgarian text: translate it on the way to the canvas. */
+function translateCtx(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
+  const c = ctx as CanvasRenderingContext2D & { __tr?: boolean };
+  if (c.__tr) return c;
+  const fill = c.fillText.bind(c);
+  const stroke = c.strokeText.bind(c);
+  c.fillText = (text: string, x: number, y: number, maxWidth?: number) => fill(tr(text), x, y, maxWidth);
+  c.strokeText = (text: string, x: number, y: number, maxWidth?: number) => stroke(tr(text), x, y, maxWidth);
+  c.__tr = true;
+  return c;
+}
+
 /** Extra slow motion in the close-up so the contact can be followed by eye. */
 const CLOSEUP_SLOWDOWN = 10;
 
@@ -24,7 +36,7 @@ export const VISUAL_SCALE = 1 / 30;
 
 export function partInfo(def: PartDef): HTMLElement {
   const dl = h('dl', { class: 'dims' });
-  for (const d of def.meta.dims) dl.append(h('dt', null, lt(d.label)), h('dd', null, d.value));
+  for (const d of def.meta.dims) dl.append(h('dt', null, lt(d.label)), h('dd', null, tr(d.value)));
   return h(
     'div',
     { class: 'part-info' },
@@ -61,7 +73,7 @@ function paramControls(
   const sync = (): void => {
     for (const p of params) {
       const v = values[p.id];
-      outputs.get(p.id)!.textContent = p.format ? p.format(v) : String(v);
+      outputs.get(p.id)!.textContent = tr(p.format ? p.format(v) : String(v));
       const input = inputs.get(p.id);
       if (input) input.value = String(v);
       choiceRows.get(p.id)?.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
@@ -84,7 +96,7 @@ function paramControls(
         'div',
         { class: 'lab-choice', role: 'group', 'aria-label': lt(p.label) },
         ...(p.options ?? []).map((o) =>
-          h('button', { class: 'chip', 'data-v': o, onclick: () => set(p.id, o, true) }, (p.format ? p.format(o) : String(o)).replace(' mm', '')),
+          h('button', { class: 'chip', 'data-v': o, onclick: () => set(p.id, o, true) }, tr((p.format ? p.format(o) : String(o)).replace(' mm', ''))),
         ),
       );
       choiceRows.set(p.id, control);
@@ -131,7 +143,7 @@ function createLabPanel(lab: LabDef, onResult: (r: LabResult, changed: boolean) 
     const go = (): void => {
       const r = lab.evaluate({ ...values });
       warningsEl.replaceChildren(...warningList(r.warnings));
-      valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+      valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, tr(v.value))]));
       onResult(r, !isDefault());
     };
     if (immediate) go();
@@ -185,7 +197,7 @@ function checkRow(c: StrengthCheck): HTMLElement {
     'li',
     { class: `chk ${ok ? 'ok' : 'bad'}` },
     h('div', { class: 'chk-head' }, h('span', { class: 'chk-label' }, lt(c.label)), h('span', { class: 'chk-s' }, `S = ${f(c.safety, 2)}`)),
-    h('div', { class: 'chk-formula' }, c.formula),
+    h('div', { class: 'chk-formula' }, tr(c.formula)),
     h(
       'div',
       { class: 'chk-bar', role: 'img', 'aria-label': `S = ${f(c.safety, 2)}, ${t('required')} ${f(c.required, 1)}` },
@@ -224,7 +236,7 @@ function createForcesPanel(
     const r = def.evaluate({ ...values }, rpm);
     warningsEl.replaceChildren(...warningList(r.warnings));
     checksEl.replaceChildren(...r.checks.map(checkRow));
-    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, tr(v.value))]));
     onArrows(r.arrows);
   };
   const controls = paramControls(first.params, values, (immediate) => {
@@ -283,7 +295,7 @@ function createCloseUpPanel(
     refresh() {
       const def = getDef();
       if (!def) return;
-      factsEl.replaceChildren(...def.facts(getRpm()).flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+      factsEl.replaceChildren(...def.facts(getRpm()).flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, tr(v.value))]));
     },
     setContacts(n) {
       if (n === last) return;
@@ -348,7 +360,7 @@ function createStressPanel(
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    last.r.plots[Math.min(plotIndex, last.r.plots.length - 1)].draw(ctx, w, hgt, colourFn);
+    last.r.plots[Math.min(plotIndex, last.r.plots.length - 1)].draw(translateCtx(ctx), w, hgt, colourFn);
   };
 
   const render = (): void => {
@@ -356,7 +368,7 @@ function createStressPanel(
     modeChips.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
     legendLabels.replaceChildren(
       ...(mode === 'utilisation'
-        ? [h('span', null, '0'), h('span', null, '50 %'), h('span', null, '100 % σдоп')]
+        ? [h('span', null, '0'), h('span', null, '50 %'), h('span', null, t('stressAllow100'))]
         : [h('span', null, '0'), h('span', null, `${fmt(last.max / 2)}`), h('span', null, `${fmt(last.max)} MPa`)]),
     );
     drawPlot();
@@ -371,7 +383,7 @@ function createStressPanel(
     last = { r, max };
     warningsEl.replaceChildren(...warningList(r.warnings));
     checksEl.replaceChildren(...r.checks.map(checkRow));
-    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, tr(v.value))]));
     plotChips.replaceChildren(
       ...r.plots.map((p, i) =>
         h('button', { class: 'chip', 'aria-pressed': String(i === plotIndex), onclick: () => { plotIndex = i; plotChips.querySelectorAll('button').forEach((b, k) => b.setAttribute('aria-pressed', String(k === i))); drawPlot(); } }, lt(p.label)),
@@ -435,7 +447,7 @@ function createMountPanel(
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    last.plot.draw(ctx, w, hgt, (v) => cssColour(rainbow(v)));
+    last.plot.draw(translateCtx(ctx), w, hgt, (v) => cssColour(rainbow(v)));
   };
 
   const refresh = (): void => {
@@ -444,7 +456,7 @@ function createMountPanel(
     const r = def.evaluate({ ...values }, getRpm());
     last = r;
     warningsEl.replaceChildren(...warningList(r.warnings));
-    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, v.value)]));
+    valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, tr(v.value))]));
     draw();
     onResult(r);
   };
@@ -614,7 +626,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       v.textContent = r.value(speeds);
       const s = r.sign?.(shown) ?? 0;
       icon.innerHTML = s > 0 ? icons.ccw : s < 0 ? icons.cw : '';
-      icon.title = s > 0 ? 'обратно на часовниковата стрелка (гледано отпред)' : s < 0 ? 'по часовниковата стрелка (гледано отпред)' : '';
+      icon.title = s > 0 ? t('rotCcw') : s < 0 ? t('rotCw') : '';
     }
     playBtn.innerHTML = playing ? icons.pause : icons.play;
     playBtn.setAttribute('aria-label', playing ? t('pause') : t('play'));

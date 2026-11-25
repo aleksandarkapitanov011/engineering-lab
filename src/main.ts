@@ -1,7 +1,7 @@
 import './styles/main.css';
 import './mechanisms';
-import { setLang } from './i18n';
+import { savedLang, setLang } from './i18n';
 import { Shell } from './app/shell';
 
-setLang('bg');
+setLang(savedLang());
 new Shell(document.getElementById('app')!);

@@ -1,6 +1,7 @@
 import type { Mechanism } from '../../core/types';
 import { gearOutline, matingPhase, polygonPath } from '../../core/involute';
-import { fmt } from '../../i18n';
+import { fmt, registerDictionary } from '../../i18n';
+import en from './en.json';
 import { SHAFT1_OFFSET } from './params';
 import { makeParts } from './parts';
 import { assembly } from './assembly';
@@ -14,6 +15,9 @@ import { createCloseUp } from './closeup';
 import { createStress } from './stress';
 import { createMounting } from './mounting';
 import { createMeasure } from './measure';
+
+// English for all the Bulgarian content of this mechanism (see tests/i18n.test.ts).
+registerDictionary(en);
 
 const thumbnail = (() => {
   const p1 = polygonPath(gearOutline({ m: 2, z: 20, backlash: 0.1 }), true);
@@ -31,7 +35,7 @@ export function mechanismFor(L: Layout): Mechanism {
     kind: 'mechanism',
     id: 'spur-gear',
     title: { bg: 'Цилиндрична зъбна предавка', en: 'Spur gear pair' },
-    subtitle: { bg: 'Две прави зъбни колела, m = 2, z₁ = 20, z₂ = 40', en: 'Two spur gears, m = 2, z1 = 20, z2 = 40' },
+    subtitle: { bg: 'Две прави зъбни колела, m = 2, z₁ = 20, z₂ = 40', en: 'Two spur gears, m = 2, z₁ = 20, z₂ = 40' },
     thumbnail,
     parts: makeParts(L),
     kinematics: {
@@ -67,7 +71,7 @@ export function mechanismFor(L: Layout): Mechanism {
         sign: (s) => Math.sign(s.get('s2') ?? 0),
       },
       {
-        label: { bg: 'i = z₂/z₁', en: 'i = z2/z1' },
+        label: { bg: 'i = z₂/z₁', en: 'i = z₂/z₁' },
         value: () => fmt(z2 / z1, 2),
       },
     ],

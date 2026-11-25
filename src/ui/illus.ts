@@ -1,5 +1,6 @@
 /** Helpers for animated SVG illustrations in theory pages. */
 import type { IllustrationHandle } from '../core/types';
+import { tr } from '../i18n';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -21,6 +22,7 @@ export function label(
   t: string,
   o: { size?: number; anchor?: string; color?: string; weight?: number } = {},
 ): SVGTextElement {
+  t = tr(t);
   const el = svg(
     'text',
     {

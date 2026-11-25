@@ -3,12 +3,14 @@
  * Lengths are proportional to the force (the largest force gets MAX_LEN mm).
  */
 import * as THREE from 'three';
+import { tr } from '../i18n';
 import type { ForceArrow } from '../core/types';
 
 const MIN_LEN = 12;
 const MAX_LEN = 58;
 
-export function labelSprite(text: string, color: string, height = 7.5): THREE.Sprite {
+export function labelSprite(raw: string, color: string, height = 7.5): THREE.Sprite {
+  const text = tr(raw);
   const scale = 2;
   const font = `700 ${26 * scale}px system-ui, "Segoe UI", Roboto, sans-serif`;
   const c = document.createElement('canvas');

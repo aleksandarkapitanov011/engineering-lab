@@ -1916,3 +1916,17 @@ input[type='range'] {
 .result-warn p {
   margin: 6px 0 0;
 }
+
+/* ---------- Language switch ---------- */
+.head-btns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: none;
+}
+
+.lang-btn {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}

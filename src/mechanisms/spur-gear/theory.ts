@@ -5,6 +5,7 @@
 import type { TheoryPage } from '../../core/types';
 import { contactRatio, deg, gearDims, gearOutline, inv, matingPhase, minTeethNoUndercut, polygonPath } from '../../core/involute';
 import { animated, arcPath, arrowDefs, label, makeRoot, svg } from '../../ui/illus';
+import { tr } from '../../i18n';
 
 const PIN = '#4d82b3';
 const GEAR = '#c4913f';
@@ -232,8 +233,8 @@ function page4(host: HTMLElement) {
     g1.setAttribute('transform', rotDeg(a));
     g2.setAttribute('transform', rotDeg(-a / 2));
     const rev = a / (2 * Math.PI);
-    n1.textContent = `колело z₁: ${comma(rev, 2)} об.`;
-    n2.textContent = `колело z₂: ${comma(rev / 2, 2)} об.`;
+    n1.textContent = tr(`колело z₁: ${comma(rev, 2)} об.`);
+    n2.textContent = tr(`колело z₂: ${comma(rev / 2, 2)} об.`);
   });
 }
 
@@ -372,15 +373,15 @@ function page6(host: HTMLElement) {
     const rot = t * 0.5;
     pa.setAttribute('transform', rotDeg(rot));
     pb.setAttribute('transform', rotDeg(-rot));
-    aLab.textContent = `a = ${comma(a, 1)} mm (a₀ = 36)`;
+    aLab.textContent = tr(`a = ${comma(a, 1)} mm (a₀ = 36)`);
     if (a < a0 - 0.05) {
-      status.textContent = 'интерференция – заклинване';
+      status.textContent = tr('интерференция – заклинване');
       status.setAttribute('fill', 'var(--err)');
     } else if (a > a0 + 0.4) {
-      status.textContent = `голям луфт, ε = ${comma(eps(a))}`;
+      status.textContent = tr(`голям луфт, ε = ${comma(eps(a))}`);
       status.setAttribute('fill', 'var(--accent)');
     } else {
-      status.textContent = `правилно, ε = ${comma(eps(a))}`;
+      status.textContent = tr(`правилно, ε = ${comma(eps(a))}`);
       status.setAttribute('fill', 'var(--ok)');
     }
   });

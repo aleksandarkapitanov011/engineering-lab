@@ -3,6 +3,7 @@
  * Line types: thick (visible outlines), thin (dimensions, hatching), centre (dash-dot).
  * Any element can be wrapped with a note key so the drawing tab can explain it on tap.
  */
+import { tr } from '../i18n';
 
 export const f = (n: number): string => (Math.round(n * 1000) / 1000).toString();
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -38,7 +39,8 @@ export interface TextOpts {
 /** Rough text width for hit areas (italic sans, mm). */
 export const textWidth = (s: string, size = 3.5): number => s.length * size * 0.56;
 
-export function text(x: number, y: number, s: string, o: TextOpts = {}): string {
+export function text(x: number, y: number, raw: string, o: TextOpts = {}): string {
+  const s = tr(raw);
   const size = o.size ?? 3.5;
   const anchor = o.anchor ?? 'middle';
   const rot = o.rotate ? ` transform="rotate(${f(o.rotate)} ${f(x)} ${f(y)})"` : '';

@@ -153,9 +153,19 @@ interface in `src/core/types.ts`, so adding one never touches them.
 
 ## Localisation
 
-- Shell UI strings live in `src/i18n/index.ts` (`bg` complete, `en` partial; missing keys fall back to Bulgarian).
-- Mechanism content uses `LText = { bg, en? }` inside each module and is resolved with `lt()`.
-- Switch language with `setLang('en')` in `src/main.ts` (a UI toggle can be added later).
+The app is fully bilingual, Bulgarian and English. The **БГ / EN** button in the header saves the choice
+(`localStorage`) and reloads on the same screen.
+
+- Shell UI strings live in `src/i18n/index.ts`; the `en` table is typed `Record<StringKey, string>`, so a missing key
+  is a compile error.
+- Mechanism content is written in Bulgarian (`LText = { bg, en? }`). An inline `en` wins; otherwise `lt()` / `tr()` look the
+  sentence up in the mechanism's dictionary (`spur-gear/en.json`, registered with `registerDictionary`).
+- Numbers are parameters: the dictionary key has `{0}`, `{1}`… in place of every number, so sentences with computed values
+  translate too, and the numbers get English decimals (`1,25` → `1.25`).
+- Text that is not an `LText` is translated on the way out: SVG drawing text (`svgdraw.text`), canvas plots, 3D labels,
+  illustration labels and panel values.
+- `tests/i18n.test.ts` walks all content, runs every panel, plot and drawing in English and fails on any Cyrillic letter.
+  Run it with `DUMP_MISSING=missing.json` to get the list of sentences that still need a translation.
 
 ## Pro / payments
 

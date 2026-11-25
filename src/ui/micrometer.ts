@@ -3,6 +3,7 @@
  * half-millimetre lines below it, thimble with 50 divisions of 0.01 mm. Drag the thimble to turn it.
  */
 import { h } from './dom';
+import { t as tx } from '../i18n';
 
 export interface MicrometerReading {
   /** Whole millimetres visible on the sleeve. */
@@ -103,7 +104,7 @@ export function createMicrometerScale(onTurn: (delta: number) => void): Micromet
     // Datum pointer arrow.
     parts.push(`<path d="M${XT - 2} ${YD}l-7 -4v8z" class="mic-ptr"/>`);
     svg.innerHTML = parts.join('');
-    svg.setAttribute('aria-label', 'Скала на микрометъра');
+    svg.setAttribute('aria-label', tx('measScaleAria'));
   };
   return { el, set };
 }

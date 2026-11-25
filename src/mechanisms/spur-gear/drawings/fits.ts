@@ -5,6 +5,7 @@
 import type { DrawingNote } from '../../../core/types';
 import { f, line, note, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
 import { N } from './common';
+import { tr } from '../../../i18n';
 import { shaftNotes } from './shaft1';
 
 /** Deviations in µm. Hole = outer part, shaft = inner part. */
@@ -183,7 +184,7 @@ function diagram(x: number, y: number, spec: FitSpec): string {
     w: 28,
     h: 12,
   });
-  s += `<text x="${f(x + 59)}" y="${f(y + 91)}" text-anchor="middle" style="font-size:3.6px;fill:${KIND_COLOUR[r.kind]};font-weight:700">сглобка ${KIND_TEXT[r.kind]}</text>`;
+  s += `<text x="${f(x + 59)}" y="${f(y + 91)}" text-anchor="middle" style="font-size:3.6px;fill:${KIND_COLOUR[r.kind]};font-weight:700">${tr(`сглобка ${KIND_TEXT[r.kind]}`)}</text>`;
   return note(spec.key, s, { x, y, w: 118, h: 96 });
 }
 
@@ -220,7 +221,7 @@ export function fitsSvg(): string {
     t += text(cols[2] + 1.5, y + 6, row[2], { anchor: 'start', size: 2.8 });
     const range = r.kind === 'clearance' ? `S ${-r.Nmax}…${r.Smax}` : r.kind === 'interference' ? `N ${-r.Smax}…${r.Nmax}` : `S ≤ ${r.Smax}, N ≤ ${r.Nmax}`;
     t += text(cols[3] + 1.5, y + 6, range, { anchor: 'start', size: 2.8 });
-    t += `<text x="${f(cols[4] + 1.5)}" y="${f(y + 6)}" style="font-size:2.8px;fill:${KIND_COLOUR[r.kind]};font-weight:700">${KIND_TEXT[r.kind]}</text>`;
+    t += `<text x="${f(cols[4] + 1.5)}" y="${f(y + 6)}" style="font-size:2.8px;fill:${KIND_COLOUR[r.kind]};font-weight:700">${tr(KIND_TEXT[r.kind])}</text>`;
   });
   s += note('table', t, { x: tx, y: ty, w: W, h: rh * (rows.length + 1) });
   s += note(
