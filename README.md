@@ -11,7 +11,7 @@ all geometry is generated procedurally (no model files). UI language is Bulgaria
 | --- | --- |
 | **Модел** **Параметри** opens the parameter lab: module (ISO 54 series), z₁, z₂ and profile shift x₁ (x₂ = −x₁) with presets; the 3D model is regenerated live and design checks report undercut, pointed teeth, contact ratio, bearing clash, pinion shaft and too large i. **Сили** opens the forces & strength panel: power P and K_A (speed from the slider) give M₁, M₂, Ft, Fr, Fₙ and bearing reactions drawn as 3D arrows, plus safety factors for Lewis bending, Hertz contact, key crushing and shaft torsion, and bearing L10h life. **Зацепване** flies the camera into the mesh: base/pitch circles, line of action N₁N₂ with the active path A–E, pitch point and α drawn over the gears, live contact points synced with the 3D teeth (extra ×10 slow motion), a live count of tooth pairs in contact. | Animated 3D model, 0–3000 min⁻¹ input slider, live n₁ / n₂ / i readouts and rotation arrows, exploded view, section plane through the shaft axes, standard views, tap a part for its metadata. |
 | **Сглоби** | Assembly game: drag a part card onto the model (or tap card, then the target). Wrong order shakes the card and explains why. Timer, mistakes, 1–3 stars, best score in `localStorage`, rotating reward. |
-| **Чертеж** | Two A3 technical drawings at 2:1 (shaft 1 and the pinion) as SVG: ISO line types, dimensions with tolerances (k6, h9, H7, N9, JS9, h11), roughness Ra 0.8/1.6/3.2, section A–A, gear data table, title block. Pinch-zoom / pan; tap a dimension or symbol for an explanation. |
+| **Чертеж** | Six A3 sheets as SVG: an assembly drawing (1:1 section in the plane of the axes, position balloons, parts list, main fits, ISO 3952 kinematic diagram), detail drawings of both shafts, the pinion and the gear z₂ (web, lightening holes, section 2:1 + end view 1:1), and a fits sheet with ISO 286 tolerance-zone diagrams (H7/k6, bearing seats, key N9/JS9, H7/g6 for comparison) and Smax/Nmax. Detail drawings: ISO line types, dimensions with tolerances (k6, h9, H7, N9, JS9, h11), roughness Ra 0.8/1.6/3.2, section A–A, gear data table, title block. Pinch-zoom / pan; tap a dimension or symbol for an explanation. |
 | **Теория** | A spiral notebook with a cover, contents and handwritten notes (highlighter, red underlines, sticky notes, arrows); pages turn like a real book. Six pages with animated SVG illustrations computed from the same involute math (line of action with live contact points, undercut traced by a rack cutter, etc.) and a 5-question quiz. |
 
 ## Requirements
@@ -94,7 +94,7 @@ src/
       params.ts           all dimensions in one place
       parts.ts            geometry builders + metadata of every part
       assembly.ts         assembly steps (partId, prerequisites, hint)
-      drawings.ts         SVG drawings + tap explanations
+      drawings/           SVG drawings + tap explanations (assembly, shaft1, pinion, shaft2, gear2, fits, common helpers)
       theory.ts           theory pages + animated illustrations
       quiz.ts             quiz questions
       index.ts            the Mechanism object (kinematics, readouts, camera, section plane)
@@ -121,7 +121,7 @@ interface in `src/core/types.ts`, so adding one never touches them.
    solved by `solveSpeeds()`. Add `readouts` to show values in the Model tab.
 4. **Assembly** (`assembly.ts`): `steps: [{ partId, requires: [...], hint: { bg } }]` and `parTimeSec`.
    `validateSteps()` in a unit test catches unknown ids and cycles.
-5. **Drawings** (`drawings.ts`): `{ id, title, render(): string, notes }`. Use the toolkit in `src/ui/svgdraw.ts`
+5. **Drawings** (`drawings/`): `{ id, title, render(): string, notes }`. Use the toolkit in `src/ui/svgdraw.ts`
    (`dim`, `roughness`, `leader`, `titleBlock`, …); pass `note: 'key'` and add `notes[key]` to make an element tappable.
 6. **Theory** (`theory.ts`): pages with `title`, 3–5 `sentences`, one `formula` and an
    `illustration(host)` that returns `{ start, stop, dispose }` (helpers in `src/ui/illus.ts`).
