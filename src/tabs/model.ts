@@ -5,7 +5,7 @@
  *   - forces & strength check (3D force arrows, safety factors).
  */
 import type { AppContext, TabSpec, TabView } from '../app/context';
-import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, Mechanism, MountingDef, MountingOverlay, MountingResult, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
+import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, MeasureOverlay, Mechanism, MountingDef, MountingOverlay, MountingResult, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
 import { solveSpeeds } from '../core/kinematics';
 import { fmt, lt, t } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
@@ -15,6 +15,7 @@ import { cssColour, legendGradient, rainbow, scaleValue, type StressMode } from 
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
+import { createMeasurePanel } from './measurePanel';
 
 /** Extra slow motion in the close-up so the contact can be followed by eye. */
 const CLOSEUP_SLOWDOWN = 10;
@@ -500,7 +501,12 @@ function createMountPanel(
   return { el, refresh };
 }
 
-type Panel = 'none' | 'part' | 'lab' | 'forces' | 'closeup' | 'stress' | 'mount';
+type Panel = 'none' | 'part' | 'lab' | 'forces' | 'closeup' | 'stress' | 'mount' | 'measure';
+
+/** Panels that show a static state: the animation is paused while they are open. */
+const isStatic = (p: Panel): boolean => p === 'stress' || p === 'measure';
+/** Panels that zoom in on the working zone. */
+const isZoomed = (p: Panel): boolean => p === 'closeup' || p === 'mount' || p === 'measure';
 
 function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const viewport = h('div', { class: 'viewport' });
@@ -547,7 +553,9 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const closeUpBtn = base.closeUp ? toolBtn(icons.mesh, t('closeUp')) : null;
   const stressBtn = base.stress ? toolBtn(icons.stress, t('stress')) : null;
   const mountBtn = base.mounting ? toolBtn(icons.mount, t('mount')) : null;
-  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn, mountBtn);
+  const measureBtn = base.measure ? toolBtn(icons.caliper, t('measure')) : null;
+  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn, mountBtn, measureBtn);
+  let measureOverlay: MeasureOverlay | null = null;
   let playingBeforeStress = true;
   let overlay: CloseUpOverlay | null = null;
   let mountOverlay: MountingOverlay | null = null;
@@ -651,6 +659,27 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     viewer.requestRender();
   };
 
+  /** Creates / removes the measuring instrument and keeps it in step with the panel. */
+  const syncMeasure = (): void => {
+    const want = panel === 'measure' && !!viewer && !!mech.measure;
+    if (!want) {
+      measureOverlay?.dispose();
+      measureOverlay = null;
+      return;
+    }
+    if (!measureOverlay) {
+      measureOverlay = mech.measure!.createOverlay();
+      viewer!.scene.add(measureOverlay.object);
+    }
+    updateMeasure();
+  };
+  const updateMeasure = (): void => {
+    if (!measureOverlay || !scene || !measurePanel) return;
+    const st = measurePanel.state();
+    measureOverlay.update(scene.bodyAngles(), st.reading, st.actual);
+    viewer?.requestRender();
+  };
+
   const setPanel = (p: Panel): void => {
     const was = panel;
     panel = p;
@@ -659,26 +688,28 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     closeUpBtn?.setAttribute('aria-pressed', String(p === 'closeup'));
     stressBtn?.setAttribute('aria-pressed', String(p === 'stress'));
     mountBtn?.setAttribute('aria-pressed', String(p === 'mount'));
-    // Static analysis: rotating would move the loaded tooth away from its colours.
-    playBtn.disabled = p === 'stress';
-    playBtn.title = p === 'stress' ? t('stressPaused') : '';
-    if (was === 'stress' && p !== 'stress') {
-      scene?.paintStress(null);
+    measureBtn?.setAttribute('aria-pressed', String(p === 'measure'));
+    // Static views: rotating would move the loaded tooth away from its colours / the part from the gauge.
+    playBtn.disabled = isStatic(p);
+    playBtn.title = isStatic(p) ? t('stressPaused') : '';
+    if (was === 'stress' && p !== 'stress') scene?.paintStress(null);
+    if (isStatic(was) && !isStatic(p)) {
       playing = playingBeforeStress;
       viewer?.requestRender();
     }
     hint.classList.toggle('hidden', p !== 'none');
     if (arrows) arrows.group.visible = p === 'forces';
-    const zoomed = (q: Panel): boolean => q === 'closeup' || q === 'mount';
-    if (zoomed(was) && !zoomed(p)) {
+    if (isZoomed(was) && !isZoomed(p)) {
       if (viewer) viewer.controls.minDistance = 60;
       // A part selection applies its own highlight, which already resets every material.
       if (p !== 'part') scene?.focus(null);
     }
     if (p === 'closeup') scene?.focus(mech.closeUp?.focusParts ?? null);
     if (p === 'mount') scene?.focus(mech.mounting?.focusParts ?? null);
+    if (p === 'measure') scene?.focus(mech.measure?.focusParts ?? null);
     syncOverlay();
     if (was === 'mount' || p === 'mount') syncMount();
+    syncMeasure();
     updateReadouts();
   };
 
@@ -724,6 +755,8 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
         },
       )
     : null;
+
+  const measurePanel = base.measure ? createMeasurePanel(base.id, () => mech.measure, () => updateMeasure()) : null;
 
   const labPanel = base.lab
     ? createLabPanel(base.lab, (r, changed) => {
@@ -805,10 +838,26 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }, 300);
   };
 
+  const openMeasure = (): void => {
+    if (!base.measure || !measurePanel) return;
+    clearSelection();
+    if (!isStatic(panel)) playingBeforeStress = playing;
+    playing = false; // the part must stand still under the gauge
+    setPanel('measure');
+    sheet.open(lt(base.measure.title), measurePanel.el, { kicker: lt(base.title) });
+    if (viewer) viewer.controls.minDistance = 8;
+    window.setTimeout(() => {
+      const md = mech.measure;
+      if (!viewer || !md || panel !== 'measure') return;
+      updateInsets();
+      viewer.viewFrom(md.camera.dir, md.camera.target, md.camera.radius, true);
+    }, 300);
+  };
+
   const openStress = (): void => {
     if (!base.stress || !stressPanel) return;
     clearSelection();
-    playingBeforeStress = playing;
+    if (!isStatic(panel)) playingBeforeStress = playing;
     playing = false; // static analysis
     setPanel('stress');
     sheet.open(lt(base.stress.title), stressPanel.el, { kicker: lt(base.title) });
@@ -820,6 +869,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   stressBtn?.addEventListener('click', () => (panel === 'stress' ? sheet.close() : openStress()));
   closeUpBtn?.addEventListener('click', () => (panel === 'closeup' ? sheet.close() : openCloseUp()));
   mountBtn?.addEventListener('click', () => (panel === 'mount' ? sheet.close() : openMount()));
+  measureBtn?.addEventListener('click', () => (panel === 'measure' ? sheet.close() : openMeasure()));
   forcesBtn?.addEventListener('click', () => (panel === 'forces' ? sheet.close() : openForces()));
 
   sheet.onClose(() => {
@@ -827,7 +877,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     setPanel('none');
     clearSelection();
     viewer?.requestRender();
-    if (was === 'closeup' || was === 'mount') updateInsets(true, mech.camera.views.iso);
+    if (isZoomed(was)) updateInsets(true, mech.camera.views.iso);
     else updateInsets(was === 'lab' || was === 'forces' || was === 'stress');
   });
 
@@ -879,6 +929,15 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     else selected = null;
     if (panel === 'forces') forcesPanel?.refresh();
     if (panel === 'stress') stressPanel?.refresh();
+    if (panel === 'measure') {
+      scene.focus(mech.measure?.focusParts ?? null);
+      measureOverlay?.dispose();
+      measureOverlay = null;
+      measurePanel?.restart();
+      syncMeasure();
+      const md = mech.measure;
+      if (md) viewer.viewFrom(md.camera.dir, md.camera.target, md.camera.radius, true);
+    }
     if (panel === 'mount') {
       scene.focus(mech.mounting?.focusParts ?? null);
       mountPanel?.refresh();
@@ -913,7 +972,8 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       buildScene(true);
       syncOverlay();
       syncMount();
-      if (panel === 'closeup') viewer.controls.minDistance = 8;
+      syncMeasure();
+      if (panel === 'closeup' || panel === 'measure') viewer.controls.minDistance = 8;
       if (panel === 'mount') viewer.controls.minDistance = 4;
       const v = viewer;
       cleanups.push(
@@ -948,6 +1008,8 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       overlay = null;
       mountOverlay?.dispose();
       mountOverlay = null;
+      measureOverlay?.dispose();
+      measureOverlay = null;
       viewer?.dispose();
       scene = null;
       arrows = null;

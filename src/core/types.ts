@@ -336,8 +336,46 @@ export interface MountingDef {
   evaluate(values: Record<string, number>, inputRpm: number): MountingResult;
 }
 
+/** One workpiece to inspect in the measuring exercise. */
+export interface MeasureSample {
+  /** True value of the measured size (mm, a multiple of the instrument resolution). */
+  actual: number;
+  /** Id of the correct verdict. */
+  verdict: string;
+  /** Explanation shown after the decision. */
+  explain: LText;
+}
+
+/** 3D instrument placed on the part, synced with the reading. */
+export interface MeasureOverlay {
+  object: THREE.Object3D;
+  /** `reading`: current opening of the instrument (mm); `actual`: true size of the workpiece. */
+  update(bodyAngles: Record<string, number>, reading: number, actual: number): void;
+  dispose(): void;
+}
+
+/** Optional measuring exercise: close the instrument on the part, read the scale, accept or reject. */
+export interface MeasureDef {
+  title: LText;
+  intro: LText;
+  /** What is measured, e.g. "W₃ – размер през 3 зъба". */
+  quantity: LText;
+  /** Drawing specification: nominal size with upper / lower deviation (mm). */
+  spec: { nominal: number; es: number; ei: number };
+  /** Instrument resolution and measuring range (mm). */
+  resolution: number;
+  range: [number, number];
+  verdicts: { id: string; label: LText }[];
+  samples(count: number, rng: () => number): MeasureSample[];
+  camera: { target: Vec3; dir: Vec3; radius: number };
+  focusParts?: string[];
+  createOverlay(): MeasureOverlay;
+}
+
 export interface Mechanism {
   kind: 'mechanism';
+  /** Optional measuring exercise. */
+  measure?: MeasureDef;
   /** Optional mounting-error view. */
   mounting?: MountingDef;
   /** Optional stress analysis that colours the parts. */

@@ -40,4 +40,10 @@ export const storage = {
   setQuizBest(mechId: string, v: number): void {
     write(`quiz:${mechId}`, v);
   },
+  measureBest(mechId: string): number | null {
+    return read<number>(`measure:${mechId}`);
+  },
+  setMeasureBest(mechId: string, v: number): void {
+    write(`measure:${mechId}`, v);
+  },
 };

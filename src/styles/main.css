@@ -1625,3 +1625,193 @@ input[type='range'] {
 .mount-legend .fem-legend-labels {
   margin-right: 0;
 }
+
+/* ---------- Measuring exercise ---------- */
+.meas-progress {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 6px 0 8px;
+}
+
+.meas-spec {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.meas-spec-q {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.meas-spec-v {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.meas-tol {
+  display: inline-flex;
+  flex-direction: column;
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+.mic {
+  margin-top: 10px;
+  border-radius: 12px;
+  background: #15171b;
+  touch-action: none;
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.mic-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mic-sleeve {
+  fill: #c9d0d8;
+}
+
+.mic-thimble {
+  fill: #dde3e9;
+  stroke: #8d969f;
+  stroke-width: 1;
+}
+
+.mic-line {
+  stroke: #15171b;
+  stroke-width: 1.4;
+}
+
+.mic-knurl {
+  stroke: rgba(0, 0, 0, 0.18);
+  stroke-width: 2;
+}
+
+.mic-num {
+  font: 600 12px system-ui, sans-serif;
+  fill: #15171b;
+  text-anchor: middle;
+}
+
+.mic-num-t {
+  text-anchor: start;
+}
+
+.mic-ratchet {
+  fill: #3b5f86;
+}
+
+.mic-ratchet.on {
+  fill: #2fbf71;
+}
+
+.mic-ptr {
+  fill: var(--accent);
+}
+
+.meas-status {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.meas-status.on {
+  color: #2fbf71;
+  font-weight: 600;
+}
+
+.meas-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.meas-step {
+  min-width: 64px;
+  font-variant-numeric: tabular-nums;
+}
+
+.meas-ratchet {
+  flex: 1;
+}
+
+.meas-input {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  background: var(--surface-2);
+  color: inherit;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.meas-check,
+.meas-next {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.meas-feedback {
+  margin-top: 12px;
+}
+
+.meas-line {
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.meas-line.ok {
+  background: rgba(47, 191, 113, 0.14);
+}
+
+.meas-line.bad {
+  background: rgba(255, 74, 74, 0.14);
+}
+
+.meas-warn {
+  color: #ffb020;
+  font-size: 14px;
+}
+
+.meas-final {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Eight tools do not fit in one column on a phone: two columns, the basic tools on the right edge. */
+@media (max-height: 880px) {
+  .tool-col {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(4, auto);
+    direction: rtl;
+  }
+
+  .tool-col > * {
+    direction: ltr;
+  }
+}

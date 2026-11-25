@@ -31,6 +31,7 @@ export const icons = {
   ccw: wrap('<path d="M18.5 9A7.5 7.5 0 1 0 19.5 13"/><path d="M19 3.5V9h-5.5"/>'),
   cw: wrap('<path d="M5.5 9A7.5 7.5 0 1 1 4.5 13"/><path d="M5 3.5V9h5.5"/>'),
   mesh: wrap('<circle cx="8" cy="12" r="5"/><circle cx="18" cy="12" r="3.5"/><path d="M8 4.5v-1.5M8 21v-1.5M1.5 12H3M13 9.5l1.5-.6M13 14.5l1.5.6"/><path d="M11.5 16.5l6-9" stroke-dasharray="2 1.6"/>'),
+  caliper: wrap('<path d="M3 6h13v4H3z"/><path d="M16 8h3.5a1.5 1.5 0 0 1 0 3H16"/><path d="M6 10v9M10 10v4"/><path d="M6 6V3M9 6V4.5M12 6V4.5"/>'),
   mount: wrap('<rect x="9" y="3.5" width="6" height="7" rx="1"/><path d="M2 7h7M15 7h7"/><path d="M2 20 22 14.5"/><path d="M2 17h20" stroke-dasharray="1.8 1.8"/>'),
   stress: wrap('<path d="M3 20 12 4l9 16z"/><path d="M7.5 12h9M12 4v16M7.5 12 12 20l4.5-8"/>'),
   forces: wrap('<path d="M12 12V3.5M12 3.5 9 6.5M12 3.5l3 3M12 12h8.5M20.5 12l-3-3M20.5 12l-3 3"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M5 19l3.5-3.5" stroke-dasharray="2 2"/>'),
