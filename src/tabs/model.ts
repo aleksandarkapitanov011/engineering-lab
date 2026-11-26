@@ -284,11 +284,17 @@ function createCloseUpPanel(
     { class: 'lab' },
     h('p', { class: 'lab-intro' }, lt(first.intro)),
     pairs,
-    h('div', { class: 'cu-legend' },
-      h('span', null, h('i', { style: 'background:#ff7a1a' }), t('cuActive')),
-      h('span', null, h('i', { class: 'dot' }), t('cuContact')),
-      h('span', null, h('i', { style: 'background:#9aa6b2' }), t('cuBase')),
-      h('span', null, h('i', { style: 'background:#fff' }), t('cuPitch')),
+    h(
+      'div',
+      { class: 'cu-legend' },
+      ...(first.legend
+        ? first.legend.map((l) => h('span', null, l.dot ? h('i', { class: 'dot' }) : h('i', { style: 'background:' + l.color }), lt(l.label)))
+        : [
+            h('span', null, h('i', { style: 'background:#ff7a1a' }), t('cuActive')),
+            h('span', null, h('i', { class: 'dot' }), t('cuContact')),
+            h('span', null, h('i', { style: 'background:#9aa6b2' }), t('cuBase')),
+            h('span', null, h('i', { style: 'background:#fff' }), t('cuPitch')),
+          ]),
     ),
     h('div', { class: 'info-label', style: 'margin-top:12px' }, t('cuFacts')),
     factsEl,
@@ -507,10 +513,10 @@ function createMountPanel(
     presets,
     ...controls.els,
     warningsEl,
-    h('div', { class: 'info-label', style: 'margin-top:12px' }, t('mountPattern')),
+    h('div', { class: 'info-label', style: 'margin-top:12px' }, first.patternTitle ? lt(first.patternTitle) : t('mountPattern')),
     canvas,
     legend,
-    h('p', { class: 'lab-hint' }, t('mountPatternNote')),
+    h('p', { class: 'lab-hint' }, first.patternNote ? lt(first.patternNote) : t('mountPatternNote')),
     h('div', { class: 'info-label', style: 'margin-top:12px' }, t('labValues')),
     valuesEl,
   );

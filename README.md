@@ -14,7 +14,16 @@ The catalogue has two folders:
   virtual spur gear on the back cone), keys and a bending + torsion check of the worst shaft section. Helical gears
   are built by twisting the transverse involute along the axis; bevel gears by lofting the heel outline towards the
   cone apex, with the heel face on the back cone. `tests/gearbox-mesh.test.ts` checks in 3D that the teeth of both
-  stages never overlap while turning.
+  stages never overlap while turning. Analysis panels like the spur gear's:
+  - `stress.ts` – FEM of the teeth on the **virtual spur gears** (helical: normal section, zᵥ = z/cos³β; bevel: back
+    cone at the mean section, zᵥ = z/cos δ), mapped onto the 3D teeth; shafts by beam theory from the 3D statics with
+    stress concentration; bearings by Hertz; plus diagrams of M and T along the three shafts.
+  - `closeup.ts` – the bevel mesh by Tredgold's method: virtual pitch/base circles on the back cones, line of action,
+    live contact points with their contact lines running to the common apex.
+  - `mounting.ts` – shim errors of the bevel pair (mounting distances 42 / 28 mm): backlash, contact pattern moving
+    to the toe or heel (crowned, elastic teeth), KHβ, jamming.
+  - `measure.ts` – span measurement W₇ of the helical gear in the normal section with the shared disc micrometer
+    (`mechanisms/common/discMicrometer.ts`, turned by the base helix angle).
 
 Stack: Vite + TypeScript + Three.js (no framework), Capacitor for Android. Everything runs offline;
 all geometry is generated procedurally (no model files). The app is bilingual (Bulgarian / English).

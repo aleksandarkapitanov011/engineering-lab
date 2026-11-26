@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { helicalBevel } from '../src/mechanisms/helical-bevel';
-import { A1, BETA, DE3, DE4, DELTA3, DELTA4, D1, D2, MN, RE, BB, SHAFT1, SHAFT2, SHAFT3 } from '../src/mechanisms/helical-bevel/params';
+import { A1, BETA, DE3, DE4, DELTA3, DELTA4, D1, D2, MB, MN, RE, BB, SHAFT1, SHAFT2, SHAFT3 } from '../src/mechanisms/helical-bevel/params';
 import { solveSpeeds, transmissionRatio } from '../src/core/kinematics';
 import { AssemblyEngine, validateSteps } from '../src/core/assembly';
 import { createMaterialKit } from '../src/three/materials';
 import { MechanismScene } from '../src/three/mechanismScene';
 import { computeGearbox, DM3, equivalentLoad, P_BEV, P_HEL, SHAFTS } from '../src/mechanisms/helical-bevel/forces';
+import { analyseBevelMount, MOUNT } from '../src/mechanisms/helical-bevel/mounting';
+import { helicalSpan, minFaceWidth } from '../src/mechanisms/helical-bevel/measure';
+import { ZV3, ZV4 } from '../src/mechanisms/helical-bevel/closeup';
+import { contactDistances, lineOfAction } from '../src/core/involute';
 
 describe('helical-bevel gearbox: geometry', () => {
   it('the helix angle gives the round centre distance a = 70 mm', () => {
@@ -178,5 +182,61 @@ describe('helical-bevel gearbox: forces and strength', () => {
     expect(over.checks.some((c) => c.safety < c.required)).toBe(true);
     expect(over.arrows.length).toBeGreaterThan(12);
     expect(helicalBevel.forces!.evaluate({ P: 1, KA: 1 }, 0).checks).toEqual([]);
+  });
+});
+
+describe('helical-bevel gearbox: analysis panels', () => {
+  it('FEM on the virtual gears agrees with the Lewis estimate and the default load is safe', () => {
+    const r = helicalBevel.stress!.evaluate({ P: 0.37, KA: 1.25 }, 500, { s1: 0, s2: 0, s3: 0 });
+    for (const c of r.checks) {
+      expect(Number.isFinite(c.stress)).toBe(true);
+      expect(c.safety).toBeGreaterThan(1);
+    }
+    const f = computeGearbox({ P: 0.37, n1: 500, KA: 1.25 });
+    const fem = r.checks.slice(0, 4).map((c) => c.stress);
+    const lewis = [f.sF1, f.sF2, f.sF3, f.sF4];
+    fem.forEach((s, i) => expect(Math.abs(s / lewis[i] - 1)).toBeLessThan(0.3));
+    expect(r.plots.length).toBe(3);
+    for (const fld of r.fields) expect(Number.isFinite(fld.stress([5, 3, 60]))).toBe(true);
+  });
+
+  it('bevel mounting: centred pattern when exact; out → heel and more backlash; in → toe, then jamming', () => {
+    const Fn = 1400;
+    const pos = (m: ReturnType<typeof analyseBevelMount>): number => (m.Rc - (RE - BB)) / BB;
+    const exact = analyseBevelMount(0, 0, Fn);
+    expect(pos(exact)).toBeCloseTo(0.5, 2);
+    expect(exact.jn).toBeCloseTo(MOUNT.jn0, 3);
+    const out = analyseBevelMount(0, 0.3, Fn);
+    expect(pos(out)).toBeGreaterThan(0.6);
+    expect(out.jn).toBeGreaterThan(exact.jn);
+    const deep = analyseBevelMount(-0.1, 0, Fn);
+    expect(pos(deep)).toBeLessThan(0.5);
+    expect(deep.jn).toBeLessThan(exact.jn);
+    expect(analyseBevelMount(-0.15, -0.15, Fn).jam).toBe(true);
+    // The load always adds up to the normal force.
+    const dR = BB / (exact.Rs.length - 1);
+    expect(exact.w.reduce((s, w) => s + w * dR, 0)).toBeCloseTo(Fn, -1);
+  });
+
+  it('span of the helical gear z₂ is measured over 7 teeth in the normal section; the face is wide enough', () => {
+    const { k, W } = helicalSpan(2, 51);
+    expect(k).toBe(7);
+    expect(W).toBeGreaterThan(39.5);
+    expect(W).toBeLessThan(40.5);
+    expect(22).toBeGreaterThan(minFaceWidth());
+    let s = 7;
+    const rng = (): number => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const samples = helicalBevel.measure!.samples(5, rng);
+    expect(samples[0].verdict).toBe('ok'); // the gear of the 3D model is within tolerance
+    expect(new Set(samples.map((x) => x.verdict)).size).toBe(3);
+  });
+
+  it('bevel close-up: 1 or 2 pairs in contact, as the virtual contact ratio says', () => {
+    // Same virtual pair as the overlay (the overlay itself needs a DOM for its labels).
+    const loa = lineOfAction(MB, ZV3, ZV4, 20, 0, 0.08);
+    const counts = new Set<number>();
+    for (let a = 0; a < 2 * Math.PI; a += 0.01) counts.add(contactDistances(loa, a).length);
+    expect([...counts].sort()).toEqual([1, 2]);
+    expect(helicalBevel.closeUp!.facts(1000).length).toBeGreaterThan(4);
   });
 });

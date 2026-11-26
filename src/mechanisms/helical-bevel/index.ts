@@ -9,6 +9,10 @@ import { assembly } from './assembly';
 import { theory, quiz } from './theory';
 import { drawings } from './drawings';
 import { createForces } from './forces';
+import { createStress } from './stress';
+import { createCloseUp } from './closeup';
+import { createMounting } from './mounting';
+import { createMeasure } from './measure';
 import { AXIS_Y, I_TOTAL, S1_Z, Z1, Z2, Z3, Z4 } from './params';
 
 const L = (bg: string, en: string): LText => ({ bg, en });
@@ -59,6 +63,10 @@ export const helicalBevel: Mechanism = {
   ],
   assembly,
   forces: createForces(),
+  stress: createStress(),
+  closeUp: createCloseUp(),
+  mounting: createMounting(),
+  measure: createMeasure(),
   drawings,
   theory,
   quiz,

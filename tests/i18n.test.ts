@@ -70,7 +70,7 @@ function exercise(m: Mechanism, out: string[]): void {
       r.plot.draw(textCtx(out), 330, 230, () => '#000');
       }
     }
-    for (const p of m.mounting.params) if (p.format) for (const v of [p.min!, 0, p.max!]) out.push(tr(p.format(v)));
+    for (const p of m.mounting.params) if (p.format) for (const v of p.kind === 'choice' ? p.options! : [p.min!, 0, p.max!]) out.push(tr(p.format(v)));
   }
   if (m.measure) {
     let s = 1;

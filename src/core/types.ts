@@ -285,6 +285,8 @@ export interface CloseUpDef {
   camera: { target: Vec3; dir: Vec3; radius: number };
   /** Parts kept fully visible in the close-up; the rest is faded so it does not hide the zone. */
   focusParts?: string[];
+  /** Legend of the overlay colours; the default names the spur-gear items (active path, contact, base and pitch circles). */
+  legend?: { color: string; label: LText; dot?: boolean }[];
   createOverlay(): CloseUpOverlay;
   facts(inputRpm: number): LabValue[];
 }
@@ -355,6 +357,9 @@ export interface MountingDef {
   presets: LabPreset[];
   camera: { target: Vec3; dir: Vec3; radius: number };
   focusParts?: string[];
+  /** Heading and explanation of the pattern plot; the defaults describe the spur-gear plot. */
+  patternTitle?: LText;
+  patternNote?: LText;
   evaluate(values: Record<string, number>, inputRpm: number): MountingResult;
 }
 

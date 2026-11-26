@@ -168,6 +168,8 @@ export interface ShaftResult {
   axial: number;
   /** Worst section: von Mises stress (nominal loads), position, diameter, bending moment and torque. */
   crit: { sEq: number; s: number; d: number; M: number; T: number };
+  /** Internal bending moment vector (world, N·mm, perpendicular to the axis) and torque at section s. */
+  internal(s: number): { Mv: Vec3; M: number; T: number };
 }
 
 /** ISO 281 table for deep groove ball bearings: Fa/C0 → e, Y. */
@@ -232,11 +234,12 @@ export function solveShaft(sh: ShaftDef, loads: Load[], n: number): ShaftResult 
     const T = loads.reduce((acc, l) => acc + dot(cross(sub(l.at, sh.O), l.F), sh.u), 0);
     items.push({ s: sh.coupling, at: along(sh, sh.coupling), F: ZERO, C: mul(sh.u, -T) });
   }
-  const internal = (s: number): { M: number; T: number } => {
+  const internal = (s: number): { Mv: Vec3; M: number; T: number } => {
     const c = along(sh, s);
     let m: Vec3 = ZERO;
     for (const it of items) if (it.s < s) m = add(add(m, cross(sub(it.at, c), it.F)), it.C ?? ZERO);
-    return { M: len(perp(sh, m)), T: Math.abs(dot(m, sh.u)) };
+    const Mv = perp(sh, m);
+    return { Mv, M: len(Mv), T: Math.abs(dot(m, sh.u)) };
   };
   const s0 = sh.segs[0][0];
   const s1 = sh.segs[sh.segs.length - 1][1];
@@ -253,7 +256,7 @@ export function solveShaft(sh: ShaftDef, loads: Load[], n: number): ShaftResult 
     const sEq = (32 / (Math.PI * d ** 3)) * Math.sqrt(Mb * Mb + 0.75 * T * T);
     if (sEq > crit.sEq) crit = { sEq, s, d, M: Mb, T };
   }
-  return { A: bearing('A', RA), B: bearing('B', RB), axial, crit };
+  return { A: bearing('A', RA), B: bearing('B', RB), axial, crit, internal };
 }
 
 // ------------------------------------------------------------------------------------------ gears

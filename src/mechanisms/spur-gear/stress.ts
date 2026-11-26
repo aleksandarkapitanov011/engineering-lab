@@ -10,7 +10,7 @@
  *    (Hamrock–Brewe) on the inner raceway.
  * Units: N, mm, MPa.
  */
-import type { LabWarning, StrengthCheck, StressDef, StressField, StressPlot, StressResult, Vec3 } from '../../core/types';
+import type { LabWarning, LText, StrengthCheck, StressDef, StressField, StressPlot, StressResult, Vec3 } from '../../core/types';
 import { deg, gearDims, inv, lineOfAction, matingPhase, rootFillet } from '../../core/involute';
 import { solvePlaneStress, type FemResult, type Mesh2D } from '../../core/fem2d';
 import { computeForces } from './forces';
@@ -391,9 +391,9 @@ function bearingField(R: number, brg: { d: number; D: number; n: number; ball: n
 
 // ------------------------------------------------------------------ Plot of the tooth FE mesh
 
-function toothPlot(label: string, tm: ToothModel, scale: number): StressPlot {
+export function toothPlot(label: string | LText, tm: ToothModel, scale: number): StressPlot {
   return {
-    label: { bg: label },
+    label: typeof label === 'string' ? { bg: label } : label,
     draw(ctx, w, h, colour) {
       const { x, y, tri } = tm.mesh;
       // Tooth pointing up: screen X = −y, screen Y = −x.
