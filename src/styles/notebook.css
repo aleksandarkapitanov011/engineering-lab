@@ -241,6 +241,28 @@
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Animated 3D figure: the rendered canvas with handwritten labels on top. */
+.illus3d {
+  position: absolute;
+  inset: 0;
+}
+
+.illus3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.nb-fig .illus text.illus3d-label {
+  font-family: var(--nb-font);
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
 .nb-fig figcaption {
   font-size: 20px;
   line-height: 26px;
