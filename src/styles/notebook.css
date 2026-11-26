@@ -548,27 +548,173 @@
   pointer-events: none;
 }
 
-/* Metal corner protectors on the free edge. */
-.nb-corner {
+/* ---------- Signs of use ---------- */
+
+/* Crumpled board: relief from a lit noise texture, two sharp creases, rubbed edges. */
+.nb-wear {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(118deg, transparent 47.6%, rgba(255, 255, 255, 0.16) 48.2%, rgba(0, 0, 0, 0.22) 48.9%, transparent 50%),
+    linear-gradient(24deg, transparent 63.5%, rgba(0, 0, 0, 0.18) 64%, rgba(255, 255, 255, 0.12) 64.6%, transparent 65.6%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='840'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011' numOctaves='5' seed='9'/%3E%3CfeDiffuseLighting lighting-color='%23ffffff' surfaceScale='3.2'%3E%3CfeDistantLight azimuth='235' elevation='48'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  background-size: 100% 100%, 100% 100%, cover;
+  mix-blend-mode: overlay;
+  opacity: 0.75;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.06),
+    inset 0 0 22px rgba(255, 236, 200, 0.18);
+}
+
+/* Coffee ring. */
+.nb-stain {
+  position: absolute;
+  left: 9%;
+  bottom: 7%;
+  width: 118px;
+  height: 112px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, transparent 80%, rgba(110, 66, 30, 0.32) 88%, rgba(110, 66, 30, 0.1) 94%, transparent 100%),
+    radial-gradient(closest-side at 46% 54%, transparent 84%, rgba(110, 66, 30, 0.2) 92%, transparent 99%),
+    radial-gradient(closest-side, rgba(110, 66, 30, 0.07), transparent);
+  transform: rotate(-18deg) scaleX(1.06);
+  mix-blend-mode: multiply;
+}
+
+/* White gel-pen doodles. */
+.nb-doodles .dd {
+  position: absolute;
+  z-index: 1;
+  fill: none;
+  stroke: rgba(246, 243, 232, 0.78);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.nb-doodles .star {
+  width: 34px;
+  left: 12%;
+  top: 6%;
+  transform: rotate(-12deg);
+}
+
+.nb-doodles .spiral {
+  width: 44px;
+  right: 16%;
+  bottom: 12%;
+}
+
+.nb-doodles .gear {
+  width: 40px;
+  left: 14%;
+  bottom: 21%;
+  transform: rotate(10deg);
+}
+
+.nb-doodles .bang {
+  width: 46px;
+  right: 20%;
+  top: 5%;
+  transform: rotate(8deg);
+}
+
+.nb-doodles .heart {
+  width: 26px;
+  right: 13%;
+  bottom: 24%;
+  transform: rotate(14deg);
+}
+
+/* Dog-eared corner: the folded flap and the pages it uncovers. */
+.nb-dogear {
   position: absolute;
   right: 0;
-  width: 46px;
-  height: 46px;
-  z-index: 2;
-  background: linear-gradient(135deg, #f6e3a8, #c9a14e 45%, #8a6a24 70%, #e8cf86);
-  filter: drop-shadow(-1px 1px 2px rgba(0, 0, 0, 0.45));
-}
-
-.nb-corner.tr {
-  top: 0;
-  clip-path: polygon(0 0, 100% 0, 100% 100%);
-  border-top-right-radius: 12px;
-}
-
-.nb-corner.br {
   bottom: 0;
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
-  border-bottom-right-radius: 12px;
+  width: 54px;
+  height: 54px;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to top left, #efe6d0 0 50%, transparent 50%);
+}
+
+.nb-dogear::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom right, transparent 0 50%, #d9cfb8 50% 70%, #c9bea4 100%);
+  transform: rotate(180deg);
+  filter: drop-shadow(-3px -3px 3px rgba(0, 0, 0, 0.35));
+}
+
+/* Sticky index tabs and loose sheets sticking out of the book (behind it). */
+.nb-strays span {
+  position: absolute;
+  pointer-events: none;
+}
+
+.nb-flag {
+  right: -13px;
+  width: 34px;
+  height: 20px;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.nb-flag.f1 {
+  top: 14%;
+  background: #f7d046;
+  transform: rotate(-3deg);
+}
+
+.nb-flag.f2 {
+  top: 31%;
+  background: #f28fb1;
+  transform: rotate(2deg);
+}
+
+.nb-flag.f3 {
+  top: 58%;
+  background: #7cc3ef;
+  transform: rotate(-1.5deg);
+}
+
+.nb-sheet {
+  background-color: #fbf8ef;
+  background-image: repeating-linear-gradient(to bottom, transparent 0 9px, rgba(120, 160, 205, 0.45) 9px 10px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.nb-sheet.s1 {
+  top: -9px;
+  right: 70px;
+  width: 150px;
+  height: 60px;
+  transform: rotate(2.6deg);
+}
+
+.nb-sheet.s2 {
+  bottom: -11px;
+  left: 64px;
+  width: 170px;
+  height: 50px;
+  transform: rotate(-1.8deg);
+}
+
+.nb-sheet.s3 {
+  bottom: 22%;
+  right: -9px;
+  width: 60px;
+  height: 120px;
+  background-color: #fff8c9;
+  background-image: none;
+  transform: rotate(4deg);
 }
 
 .nb-elastic {

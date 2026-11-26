@@ -66,7 +66,7 @@ function createTheoryTab(mech: Mechanism): TabView {
 
   const book = h('div', { class: 'nb-book', tabindex: '0', 'aria-roledescription': 'book' });
   const spiral = h('div', { class: 'nb-spiral', 'aria-hidden': 'true' });
-  const desk = h('div', { class: 'nb-desk' }, h('div', { class: 'nb-book-wrap' }, book, spiral, h('div', { class: 'nb-ribbon', 'aria-hidden': 'true' })));
+  const desk = h('div', { class: 'nb-desk' }, h('div', { class: 'nb-book-wrap' }, strays(), book, spiral, h('div', { class: 'nb-ribbon', 'aria-hidden': 'true' })));
 
   const addLeaf = (front: HTMLElement, label: string, opts: { paper?: HTMLElement; theoryIndex?: number; illusHost?: HTMLElement; cover?: boolean } = {}): void => {
     const shade = h('div', { class: 'nb-shade' });
@@ -94,8 +94,11 @@ function createTheoryTab(mech: Mechanism): TabView {
       h('div', { class: 'nb-label-line small' }, 'Engineering Lab'),
     ),
     mech.coverSketch ? coverSketchCard(mech) : coverPhoto(mech),
-    h('div', { class: 'nb-corner tr', 'aria-hidden': 'true' }),
-    h('div', { class: 'nb-corner br', 'aria-hidden': 'true' }),
+    // Signs of use: creases, a coffee ring, gel-pen doodles, a dog-eared corner.
+    h('div', { class: 'nb-wear', 'aria-hidden': 'true' }),
+    h('div', { class: 'nb-stain', 'aria-hidden': 'true' }),
+    h('div', { class: 'nb-doodles', 'aria-hidden': 'true', html: COVER_DOODLES }),
+    h('div', { class: 'nb-dogear', 'aria-hidden': 'true' }),
     h('div', { class: 'nb-cover-hint' }, h('span', null, t('nbOpenHint')), fromHTML(arrowRight)),
   );
   addLeaf(cover, t('nbCover'), { cover: true });
@@ -517,6 +520,27 @@ function createTheoryTab(mech: Mechanism): TabView {
       handles.forEach((hd) => hd?.dispose());
     },
   };
+}
+
+/** Gel-pen doodles on the cover (white ink on the board). */
+const COVER_DOODLES = `<svg class="dd star" viewBox="0 0 40 40"><path d="M20 4 L24 16 L37 16 L26 24 L30 37 L20 29 L10 37 L14 24 L3 16 L16 16 Z"/></svg>
+<svg class="dd spiral" viewBox="0 0 50 50"><path d="M25 25 m0 -2 a2 2 0 1 1 -3 3 a6 6 0 1 1 9 -7 a10 10 0 1 1 -16 13 a14 14 0 1 1 22 -18"/></svg>
+<svg class="dd gear" viewBox="0 0 50 50"><circle cx="25" cy="25" r="11"/><circle cx="25" cy="25" r="4"/><path d="M25 6v7M25 37v7M6 25h7M37 25h7M12 12l5 5M33 33l5 5M38 12l-5 5M17 33l-5 5"/></svg>
+<svg class="dd bang" viewBox="0 0 60 40"><path d="M8 6 L10 26 M10 33 L10 34 M22 6 L24 26 M24 33 L24 34 M36 6 L38 26 M38 33 L38 34"/><path d="M44 30 C50 18 56 22 52 30" /></svg>
+<svg class="dd heart" viewBox="0 0 40 36"><path d="M20 32 C2 20 4 6 13 6 C17 6 19 9 20 12 C21 9 23 6 27 6 C36 6 38 20 20 32 Z"/></svg>`;
+
+/** Things sticking out of the notebook: sticky index tabs and loose sheets between the pages. */
+function strays(): HTMLElement {
+  return h(
+    'div',
+    { class: 'nb-strays', 'aria-hidden': 'true' },
+    h('span', { class: 'nb-flag f1' }),
+    h('span', { class: 'nb-flag f2' }),
+    h('span', { class: 'nb-flag f3' }),
+    h('span', { class: 'nb-sheet s1' }),
+    h('span', { class: 'nb-sheet s2' }),
+    h('span', { class: 'nb-sheet s3' }),
+  );
 }
 
 /** Hand-drawn sketch on a piece of squared paper, for mechanisms that have one. */

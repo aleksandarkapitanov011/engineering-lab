@@ -15,6 +15,7 @@ import { createCloseUp } from './closeup';
 import { createStress } from './stress';
 import { createMounting } from './mounting';
 import { createMeasure } from './measure';
+import { coverSketch } from './coverSketch';
 
 // English for all the Bulgarian content of this mechanism (see tests/i18n.test.ts).
 registerDictionary(en);
@@ -91,6 +92,7 @@ export function mechanismFor(L: Layout): Mechanism {
     },
     section: { normal: [0, -1, 0], constant: L.axisY },
     maxInputRpm: 3000,
+    coverSketch,
     forces: createForces(L),
     closeUp: createCloseUp(L),
     stress: createStress(L),
