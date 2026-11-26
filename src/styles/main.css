@@ -1866,6 +1866,11 @@ input[type='range'] {
 @media (max-width: 720px), (max-height: 600px) {
   .tool-btn.tool-toggle {
     display: flex;
+    /* "Инструменти" is wider than the other labels: let this button grow instead of overflowing. */
+    width: auto;
+    min-width: 62px;
+    padding: 4px 8px;
+    white-space: nowrap;
   }
 
   .tool-rail {
