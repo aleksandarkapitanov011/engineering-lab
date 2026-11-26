@@ -516,14 +516,59 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 22px;
-  padding: 30px 30px 30px 46px;
+  gap: 26px;
+  padding: 30px 40px 30px 52px;
   color: #fff;
   font-family: var(--nb-font);
+  overflow: hidden;
+  /* Linen-bound board: soft light, woven texture, darker edges. */
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.1), transparent 55%),
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 5px),
-    linear-gradient(160deg, #2b4772, #1b2d4d);
+    radial-gradient(ellipse at 28% 18%, rgba(255, 255, 255, 0.16), transparent 52%),
+    radial-gradient(ellipse at 80% 95%, rgba(0, 0, 0, 0.28), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, var(--cover-a, #2f5185) 0%, var(--cover-b, #22396a) 48%, var(--cover-c, #172846) 100%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+}
+
+/* One cover colour per catalogue folder. */
+.nb-cover.burgundy {
+  --cover-a: #8a3341;
+  --cover-b: #64202c;
+  --cover-c: #3d121a;
+}
+
+/* Stitching along the edge of the board. */
+.nb-cover::after {
+  content: '';
+  position: absolute;
+  inset: 12px 12px 12px 30px;
+  border: 2px dashed rgba(255, 236, 190, 0.38);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* Metal corner protectors on the free edge. */
+.nb-corner {
+  position: absolute;
+  right: 0;
+  width: 46px;
+  height: 46px;
+  z-index: 2;
+  background: linear-gradient(135deg, #f6e3a8, #c9a14e 45%, #8a6a24 70%, #e8cf86);
+  filter: drop-shadow(-1px 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.nb-corner.tr {
+  top: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  border-top-right-radius: 12px;
+}
+
+.nb-corner.br {
+  bottom: 0;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  border-bottom-right-radius: 12px;
 }
 
 .nb-elastic {
@@ -532,20 +577,40 @@
   bottom: 0;
   right: 30px;
   width: 11px;
-  background: linear-gradient(90deg, #111, #3b3b3b 50%, #111);
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.4);
+  z-index: 3;
+  background: linear-gradient(90deg, #0d0d0d, #444 35%, #222 60%, #0d0d0d);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
 }
 
 .nb-label {
+  position: relative;
+  z-index: 1;
   width: min(86%, 340px);
-  padding: 14px 20px 16px;
+  padding: 16px 20px 16px;
   text-align: center;
   color: var(--nb-ink);
   background-color: var(--nb-paper);
   background-image: repeating-linear-gradient(to bottom, transparent 0 33px, rgba(150, 180, 210, 0.45) 33px 34px);
-  border-radius: 8px;
+  border-radius: 6px;
   transform: rotate(-1.6deg);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.nb-label .nb-tape {
+  top: -12px;
+  width: 64px;
+}
+
+.nb-label .nb-tape.left {
+  left: -14px;
+  transform: rotate(-32deg);
+}
+
+.nb-label .nb-tape.right {
+  right: -14px;
+  transform: rotate(28deg);
 }
 
 .nb-label-title {
@@ -573,22 +638,176 @@
   color: var(--nb-ink-dark);
 }
 
-.nb-cover-sticker {
-  width: 58%;
-  max-width: 250px;
-  padding: 16px 14px;
-  background: var(--nb-paper);
-  border-radius: 14px;
-  transform: rotate(5deg);
+/* Polaroid of the 3D model. */
+.nb-photo {
+  position: relative;
+  z-index: 1;
+  width: min(70%, 290px);
+  margin: 0;
+  padding: 10px 10px 4px;
+  background: #fdfdfb;
+  border-radius: 3px;
+  transform: rotate(4deg);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.25),
+    0 14px 26px rgba(0, 0, 0, 0.4);
   color: #213b73;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
   --surface: #fffdf6;
 }
 
-.nb-cover-sticker svg {
+.nb-photo-img {
+  aspect-ratio: 16 / 11;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 40%, #ffffff, #e3e9f1 75%),
+    #e9eef5;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.nb-photo-img svg {
+  width: 82%;
+  height: auto;
+}
+
+.nb-photo-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: nb-photo-in 0.6s ease-out;
+}
+
+@keyframes nb-photo-in {
+  from {
+    opacity: 0;
+    filter: brightness(1.8);
+  }
+}
+
+.nb-photo figcaption {
+  font-family: var(--nb-font);
+  font-size: 24px;
+  line-height: 34px;
+  text-align: center;
+  color: var(--nb-ink);
+}
+
+.nb-photo-tape {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  width: 92px;
+  height: 24px;
+  transform: translateX(-50%) rotate(-3deg);
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.35) 0 6px, transparent 6px 12px),
+    rgba(244, 143, 120, 0.78);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* Hand-drawn sketch on squared paper (instead of the photo). */
+.nb-sketch {
+  width: min(84%, 360px);
+  padding: 8px;
+  transform: rotate(-2.5deg);
+}
+
+.nb-sketch-paper {
+  background-color: #fffef9;
+  background-image:
+    linear-gradient(rgba(120, 160, 205, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 160, 205, 0.22) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.nb-sketch-svg {
   display: block;
   width: 100%;
   height: auto;
+  font-family: var(--nb-font);
+  font-weight: 700;
+}
+
+/* The sketch draws itself: strokes first, then the colouring and the notes. */
+.nb-sketch-svg .sk {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sk-draw 0.7s ease-out forwards;
+  animation-delay: var(--d);
+}
+
+.nb-sketch-svg .sk-fill,
+.nb-sketch-svg .sk-t {
+  opacity: 0;
+  animation: sk-fade 0.5s ease-out forwards;
+  animation-delay: calc(var(--d) + 0.35s);
+}
+
+@keyframes sk-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes sk-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-sketch-svg .sk {
+    stroke-dashoffset: 0;
+  }
+
+  .nb-sketch-svg .sk-fill,
+  .nb-sketch-svg .sk-t {
+    opacity: 1;
+  }
+}
+
+/* Round sticker with the gear ratio. */
+.nb-cover-badge {
+  position: absolute;
+  right: -30px;
+  top: -26px;
+  z-index: 2;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  color: #5a2a00;
+  background: radial-gradient(circle at 35% 30%, #ffe9a6, #f6c445 55%, #d89b17);
+  border: 3px solid #fff3cf;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+  transform: rotate(12deg);
+}
+
+.nb-cover-badge span {
+  font-size: 18px;
+}
+
+.nb-cover-badge b {
+  font-size: 34px;
+}
+
+/* Satin ribbon bookmark hanging out at the bottom of the book. */
+.nb-ribbon {
+  position: absolute;
+  bottom: -26px;
+  right: 92px;
+  width: 16px;
+  height: 46px;
+  z-index: 0;
+  background: linear-gradient(90deg, #8f1d1d, #c93a3a 45%, #a12525);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 
 .nb-cover-hint {
@@ -824,6 +1043,16 @@
 
 /* Phones: the whole desk scrolls (the book takes the height of its longest page, set in theory.ts). */
 @media (max-width: 720px) {
+  .nb-cover {
+    justify-content: flex-start;
+    padding-top: 54px;
+  }
+
+  .nb-sketch {
+    width: 100%;
+    transform: rotate(-1.5deg);
+  }
+
   .nb-desk {
     overflow-y: auto;
     overscroll-behavior: contain;

@@ -9,7 +9,9 @@ import '../styles/notebook.css';
 import type { TabSpec, TabView } from '../app/context';
 import type { IllustrationHandle, Mechanism, TheoryPage } from '../core/types';
 import { storage } from '../core/storage';
-import { lt, t } from '../i18n';
+import { fmt, lt, t } from '../i18n';
+import { transmissionRatio } from '../core/kinematics';
+import { coverPreview, thumbnail } from '../three/thumbs';
 import { h, fromHTML, capturePointer } from '../ui/dom';
 import { icons } from '../ui/icons';
 import {
@@ -64,7 +66,7 @@ function createTheoryTab(mech: Mechanism): TabView {
 
   const book = h('div', { class: 'nb-book', tabindex: '0', 'aria-roledescription': 'book' });
   const spiral = h('div', { class: 'nb-spiral', 'aria-hidden': 'true' });
-  const desk = h('div', { class: 'nb-desk' }, h('div', { class: 'nb-book-wrap' }, book, spiral));
+  const desk = h('div', { class: 'nb-desk' }, h('div', { class: 'nb-book-wrap' }, book, spiral, h('div', { class: 'nb-ribbon', 'aria-hidden': 'true' })));
 
   const addLeaf = (front: HTMLElement, label: string, opts: { paper?: HTMLElement; theoryIndex?: number; illusHost?: HTMLElement; cover?: boolean } = {}): void => {
     const shade = h('div', { class: 'nb-shade' });
@@ -76,19 +78,24 @@ function createTheoryTab(mech: Mechanism): TabView {
   };
 
   // ----- Cover -----
+  // (the photo is the rendered 3D model, the same picture as on the catalogue card)
   const cover = h(
     'div',
-    { class: 'nb-cover' },
+    { class: `nb-cover ${mech.category === 'mechanisms' ? 'burgundy' : 'blue'}` },
     h('div', { class: 'nb-elastic', 'aria-hidden': 'true' }),
     h(
       'div',
       { class: 'nb-label' },
+      h('span', { class: 'nb-tape left', 'aria-hidden': 'true' }),
+      h('span', { class: 'nb-tape right', 'aria-hidden': 'true' }),
       h('div', { class: 'nb-label-title' }, t('nbNotes')),
       h('div', { class: 'nb-label-line' }, t('nbSubject')),
       h('div', { class: 'nb-label-topic' }, lt(mech.title)),
       h('div', { class: 'nb-label-line small' }, 'Engineering Lab'),
     ),
-    h('div', { class: 'nb-cover-sticker', html: mech.thumbnail }),
+    mech.coverSketch ? coverSketchCard(mech) : coverPhoto(mech),
+    h('div', { class: 'nb-corner tr', 'aria-hidden': 'true' }),
+    h('div', { class: 'nb-corner br', 'aria-hidden': 'true' }),
     h('div', { class: 'nb-cover-hint' }, h('span', null, t('nbOpenHint')), fromHTML(arrowRight)),
   );
   addLeaf(cover, t('nbCover'), { cover: true });
@@ -510,6 +517,38 @@ function createTheoryTab(mech: Mechanism): TabView {
       handles.forEach((hd) => hd?.dispose());
     },
   };
+}
+
+/** Hand-drawn sketch on a piece of squared paper, for mechanisms that have one. */
+function coverSketchCard(mech: Mechanism): HTMLElement {
+  return h(
+    'figure',
+    { class: 'nb-photo nb-sketch' },
+    h('span', { class: 'nb-photo-tape', 'aria-hidden': 'true' }),
+    h('div', { class: 'nb-sketch-paper', html: mech.coverSketch!() }),
+  );
+}
+
+/** Polaroid photo of the 3D model for the cover (the line drawing until the render is ready). */
+function coverPhoto(mech: Mechanism): HTMLElement {
+  const img = h('div', { class: 'nb-photo-img', html: mech.thumbnail });
+  thumbnail(
+    `cover:${mech.id}`,
+    coverPreview(mech),
+    (url) => {
+      img.replaceChildren(h('img', { src: url, alt: '', draggable: 'false' }));
+      img.classList.add('has-img');
+    },
+    { w: 640, h: 440 },
+  );
+  return h(
+    'figure',
+    { class: 'nb-photo' },
+    h('span', { class: 'nb-photo-tape', 'aria-hidden': 'true' }),
+    h('div', { class: 'nb-cover-badge', 'aria-hidden': 'true' }, h('span', null, 'i ='), h('b', null, fmt(transmissionRatio(mech.kinematics), 0))),
+    img,
+    h('figcaption', null, t('nbPhoto')),
+  );
 }
 
 export const theoryTab: TabSpec = {

@@ -11,8 +11,13 @@ import { MechanismScene } from './mechanismScene';
 
 /** Bump when a preview model or the look changes, so cached images are redrawn. */
 const VERSION = 3;
+/** Default picture size (catalogue cards); other sizes can be asked per picture. */
 const W = 704;
 const H = 320;
+export interface ThumbSize {
+  w: number;
+  h: number;
+}
 
 const memory = new Map<string, string>();
 const storageKey = (id: string): string => `thumb:v${VERSION}:${id}`;
@@ -96,7 +101,8 @@ function samplePoints(obj: THREE.Object3D): THREE.Vector3[] {
 }
 
 /** Places the camera along `dir` so that the model fills the image with a small margin, centred. */
-function frame(camera: THREE.PerspectiveCamera, obj: THREE.Object3D, box: THREE.Box3, dir: THREE.Vector3): void {
+function frame(camera: THREE.PerspectiveCamera, obj: THREE.Object3D, box: THREE.Box3, dir: THREE.Vector3, size: ThumbSize): void {
+  const { w: W, h: H } = size;
   const centre = box.getCenter(new THREE.Vector3());
   const radius = box.getSize(new THREE.Vector3()).length() / 2;
   let dist = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -137,14 +143,15 @@ function disposeTree(o: THREE.Object3D): void {
   });
 }
 
-function render(p: Preview3D): string {
+function render(p: Preview3D, size: ThumbSize): string {
   const { renderer: r, scene: s } = setup();
+  r.setSize(size.w, size.h, false);
   const obj = p.build(createMaterialKit());
   s.add(obj);
   obj.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(obj);
-  const camera = new THREE.PerspectiveCamera(30, W / H, 1, 5000);
-  frame(camera, obj, box, new THREE.Vector3(...p.dir).normalize());
+  const camera = new THREE.PerspectiveCamera(30, size.w / size.h, 1, 5000);
+  frame(camera, obj, box, new THREE.Vector3(...p.dir).normalize(), size);
   camera.near = Math.max(0.5, camera.position.distanceTo(box.getCenter(new THREE.Vector3())) - box.getSize(new THREE.Vector3()).length());
   camera.far = camera.near + box.getSize(new THREE.Vector3()).length() * 3 + 100;
   camera.updateProjectionMatrix();
@@ -159,6 +166,7 @@ function render(p: Preview3D): string {
 interface Job {
   id: string;
   preview: Preview3D;
+  size: ThumbSize;
   done: (url: string) => void;
 }
 const queue: Job[] = [];
@@ -174,7 +182,7 @@ function pump(): void {
   let url: string | null = cached(job.id);
   if (!url) {
     try {
-      url = render(job.preview);
+      url = render(job.preview, job.size);
       store(job.id, url);
     } catch (e) {
       console.warn('thumbnail failed', job.id, e);
@@ -189,13 +197,13 @@ function pump(): void {
  * Calls `done` with the picture of `id`: at once when it is cached, otherwise after rendering.
  * Returns true when it was answered synchronously.
  */
-export function thumbnail(id: string, preview: Preview3D, done: (url: string) => void): boolean {
+export function thumbnail(id: string, preview: Preview3D, done: (url: string) => void, size: ThumbSize = { w: W, h: H }): boolean {
   const url = cached(id);
   if (url) {
     done(url);
     return true;
   }
-  queue.push({ id, preview, done });
+  queue.push({ id, preview, done, size });
   if (!running) {
     running = true;
     window.setTimeout(pump, 50);
@@ -216,4 +224,21 @@ export function mechanismPreview(mech: Mechanism): Preview3D {
       },
     }
   );
+}
+
+/** Cover photo of a mechanism: its moving parts without the housing / base, a little closer. */
+export function coverPreview(mech: Mechanism): Preview3D {
+  return {
+    dir: mech.camera.views.iso,
+    build: () => {
+      const s = new MechanismScene(mech);
+      for (const id of ['housing', 'base']) {
+        const p = s.parts.get(id);
+        if (p) p.wrapper.visible = false;
+      }
+      s.setArrows(false);
+      s.update(0);
+      return s.root;
+    },
+  };
 }

@@ -435,6 +435,8 @@ export interface Mechanism {
   maxInputRpm: number;
   /** Picture for the catalogue card; by default the whole model from the iso view. */
   preview?: Preview3D;
+  /** Hand-drawn sketch for the notebook cover (SVG markup, in the current language); default: a 3D photo. */
+  coverSketch?: () => string;
 }
 
 /** A 3D picture for a catalogue card: built once, rendered to an image and cached. */
