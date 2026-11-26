@@ -428,6 +428,15 @@ export interface Mechanism {
   section: { normal: Vec3; constant: number };
   /** Max input speed for the slider, rpm. */
   maxInputRpm: number;
+  /** Picture for the catalogue card; by default the whole model from the iso view. */
+  preview?: Preview3D;
+}
+
+/** A 3D picture for a catalogue card: built once, rendered to an image and cached. */
+export interface Preview3D {
+  build(kit: MaterialKit): THREE.Object3D;
+  /** Viewing direction (from the model towards the camera). */
+  dir: Vec3;
 }
 
 /** A folder of the catalogue (e.g. gear drives, complete mechanisms). */
@@ -435,8 +444,9 @@ export interface CategoryDef {
   id: string;
   title: LText;
   subtitle: LText;
-  /** Inline SVG markup for the folder tile. */
+  /** Inline SVG markup for the folder tile (shown until the 3D picture is ready). */
   thumbnail: string;
+  preview?: Preview3D;
 }
 
 /** A locked placeholder in the catalogue. */
@@ -448,6 +458,7 @@ export interface TeaserEntry {
   title: LText;
   subtitle: LText;
   thumbnail: string;
+  preview?: Preview3D;
   pro: boolean;
 }
 

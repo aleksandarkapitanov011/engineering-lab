@@ -6,6 +6,8 @@
 import { registerCategory, registerEntry } from '../core/registry';
 import { spurGear } from './spur-gear';
 import { helicalBevel } from './helical-bevel';
+import { bevelPreview, planetaryPreview, spurPairPreview, wormPreview } from './previews';
+import { mechanismPreview } from '../three/thumbs';
 
 const line = 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"';
 const thin = 'fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"';
@@ -39,6 +41,7 @@ registerCategory({
   },
   thumbnail: `<svg viewBox="0 0 120 80" aria-hidden="true">${gear(44, 40, 20, 14)}${gear(81, 40, 13, 9)}
     <circle ${line} cx="44" cy="40" r="5"/><circle ${line} cx="81" cy="40" r="4"/></svg>`,
+  preview: spurPairPreview,
 });
 
 registerCategory({
@@ -54,6 +57,7 @@ registerCategory({
     ${gear(42, 38, 9, 9, thin)}${gear(66, 38, 15, 14, thin)}
     <path ${line} d="M4 38 H33 M66 38 H116" stroke-dasharray="5 3 1.5 3"/>
   </svg>`,
+  preview: { ...mechanismPreview(helicalBevel), dir: [1.25, 0.8, 0.9] },
 });
 
 // ---------------------------------------------------------------- Gear drives
@@ -78,6 +82,7 @@ registerEntry({
   title: { bg: 'Конична предавка', en: 'Bevel gear pair' },
   subtitle: { bg: 'Предаване между пресичащи се валове', en: 'Intersecting shafts' },
   thumbnail: bevelThumb,
+  preview: bevelPreview,
   pro: true,
 });
 registerEntry({
@@ -87,6 +92,7 @@ registerEntry({
   title: { bg: 'Червячна предавка', en: 'Worm gear' },
   subtitle: { bg: 'Голямо предавателно отношение в едно стъпало', en: 'High ratio in one stage' },
   thumbnail: wormThumb,
+  preview: wormPreview,
   pro: true,
 });
 
@@ -106,5 +112,6 @@ registerEntry({
   title: { bg: 'Планетарен редуктор', en: 'Planetary gearbox' },
   subtitle: { bg: 'Слънчево колело, сателити и венец', en: 'Sun, planets and ring' },
   thumbnail: planetThumb,
+  preview: planetaryPreview,
   pro: true,
 });

@@ -3,7 +3,8 @@
  * It only uses the registry and the generic Mechanism interface.
  */
 import { categories, entriesIn, getCategory, getMechanism } from '../core/registry';
-import type { CatalogEntry, CategoryDef, Mechanism } from '../core/types';
+import type { CatalogEntry, CategoryDef, Mechanism, Preview3D } from '../core/types';
+import { mechanismPreview, thumbnail } from '../three/thumbs';
 import { entitlements } from '../core/entitlements';
 import { storage, type Theme } from '../core/storage';
 import { lang, lt, saveLang, t } from '../i18n';
@@ -136,8 +137,7 @@ export class Shell {
     const items = entriesIn(cat.id);
     const ready = items.filter((e) => e.kind === 'mechanism').length;
     const soon = items.length - ready;
-    const thumb = h('div', { class: 'card-thumb' });
-    thumb.appendChild(fromHTML(cat.thumbnail));
+    const thumb = this.thumb(`cat:${cat.id}`, cat.thumbnail, cat.preview);
     return h(
       'a',
       { class: 'card folder', href: `#/c/${cat.id}`, 'aria-label': lt(cat.title) },
@@ -173,10 +173,24 @@ export class Shell {
     );
   }
 
+  /** Card picture: the line drawing at first, replaced by the rendered 3D image when it is ready. */
+  private thumb(id: string, svg: string, preview?: Preview3D): HTMLElement {
+    const el = h('div', { class: 'card-thumb' });
+    el.appendChild(fromHTML(svg));
+    if (preview) {
+      const instant = thumbnail(id, preview, (url) => {
+        const img = h('img', { class: 'card-img', src: url, alt: '', draggable: 'false' });
+        el.replaceChildren(img);
+        el.classList.add('has-img');
+      });
+      if (instant) el.classList.add('no-fade');
+    }
+    return el;
+  }
+
   private card(entry: CatalogEntry): HTMLElement {
     const locked = entry.kind === 'teaser';
-    const thumb = h('div', { class: 'card-thumb' });
-    thumb.appendChild(fromHTML(entry.thumbnail));
+    const thumb = this.thumb(`${entry.kind}:${entry.id}`, entry.thumbnail, entry.kind === 'mechanism' ? mechanismPreview(entry) : entry.preview);
     const badges = h('div', { class: 'card-badges' });
     if (locked) {
       badges.append(h('span', { class: 'badge soon' }, t('soon')));

@@ -61,12 +61,12 @@ const HOUSING_COLOR = '#93a4b8';
 const segs = (list: [number, number, number][]) => list.map(([z0, z1, d]) => ({ z0, z1, r: d / 2 }));
 
 /** Helical outline in the transverse plane. */
-function helicalOutline(z: number, phase: number): Pt[] {
+export function helicalOutline(z: number, phase: number): Pt[] {
   return gearOutline({ m: MT, z, alphaDeg: (ALPHA_T * 180) / Math.PI, backlash: HEL_BACKLASH, phase, flankSegments: 7, tipSegments: 2, rootSegments: 3 });
 }
 
 /** Heel outline of a straight bevel gear: the spur outline with the tooth height projected on the heel plane. */
-function bevelHeel(z: number, delta: number, phase: number): Pt[] {
+export function bevelHeel(z: number, delta: number, phase: number): Pt[] {
   const rp = (MB * z) / 2;
   const c = Math.cos(delta);
   return gearOutline({ m: MB, z, backlash: 0.08, phase, flankSegments: 6, tipSegments: 2, rootSegments: 3 }).map(([x, y]) => {
@@ -77,7 +77,7 @@ function bevelHeel(z: number, delta: number, phase: number): Pt[] {
 }
 
 /** Back-cone data of a bevel gear for bevelGear(): pitch radius at the heel and its projected root radius. */
-function bevelCone(z: number, delta: number): { rp: number; tanDelta: number; rMin: number } {
+export function bevelCone(z: number, delta: number): { rp: number; tanDelta: number; rMin: number } {
   const rp = (MB * z) / 2;
   return { rp, tanDelta: Math.tan(delta), rMin: rp - 1.25 * MB * Math.cos(delta) - 0.01 };
 }
