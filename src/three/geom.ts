@@ -9,6 +9,10 @@ import type { Pt } from '../core/involute';
 /** Merges geometries after converting them to non-indexed (attributes must match: position, normal, uv). */
 export function merge(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const list = geos.map((g) => (g.index ? g.toNonIndexed() : g));
+  // Keep only the attributes every part has (e.g. procedural gears carry no uv).
+  const common = Object.keys(list[0]?.attributes ?? {}).filter((name) => list.every((g) => g.getAttribute(name)));
+  for (const g of list) for (const name of Object.keys(g.attributes)) if (!common.includes(name)) g.deleteAttribute(name);
+  for (const g of list) if (!g.getAttribute('normal')) g.computeVertexNormals();
   const merged = mergeGeometries(list, false);
   for (const g of geos) g.dispose();
   for (const g of list) g.dispose();
@@ -120,7 +124,8 @@ export interface ShaftKeyway {
  * Stepped shaft along Z from segments of constant radius, with end chamfers and an optional
  * flat-ended (form B) keyway on the +X side. Segments must be contiguous and sorted.
  */
-export function steppedShaft(segs: ShaftSegment[], chamfer: number, key?: ShaftKeyway): THREE.BufferGeometry {
+export function steppedShaft(segs: ShaftSegment[], chamfer: number, key?: ShaftKeyway | ShaftKeyway[]): THREE.BufferGeometry {
+  const keys = (Array.isArray(key) ? key : key ? [key] : []).slice().sort((p, q) => p.z0 - q.z0);
   const first = segs[0];
   const last = segs[segs.length - 1];
   const prof: Pt[] = [
@@ -128,12 +133,14 @@ export function steppedShaft(segs: ShaftSegment[], chamfer: number, key?: ShaftK
     [first.r - chamfer, first.z0],
     [first.r, first.z0 + chamfer],
   ];
-  let keyEdge = -1;
+  const keyEdges = new Set<number>();
   segs.forEach((s, i) => {
-    if (key && key.z0 >= s.z0 && key.z1 <= s.z1) {
-      prof.push([s.r, key.z0]);
-      keyEdge = prof.length - 1; // edge from this point to the next is replaced by the extrusion
-      prof.push([s.r, key.z1]);
+    for (const k of keys) {
+      if (k.z0 >= s.z0 && k.z1 <= s.z1) {
+        prof.push([s.r, k.z0]);
+        keyEdges.add(prof.length - 1); // edge from this point to the next is replaced by the extrusion
+        prof.push([s.r, k.z1]);
+      }
     }
     if (i < segs.length - 1) {
       prof.push([s.r, s.z1]);
@@ -141,35 +148,36 @@ export function steppedShaft(segs: ShaftSegment[], chamfer: number, key?: ShaftK
     }
   });
   prof.push([last.r, last.z1 - chamfer], [last.r - chamfer, last.z1], [0, last.z1]);
-  const parts = [revolve(prof, 48, (i) => i === keyEdge)];
+  const parts = [revolve(prof, 48, (i) => keyEdges.has(i))];
 
-  if (key) {
-    const seg = segs.find((s) => key.z0 >= s.z0 && key.z1 <= s.z1)!;
+  for (const k of keys) {
+    const seg = segs.find((s) => k.z0 >= s.z0 && k.z1 <= s.z1);
+    if (!seg) continue;
     const r = seg.r;
-    const a0 = Math.asin(key.b / 2 / r);
+    const a0 = Math.asin(k.b / 2 / r);
     const xc = r * Math.cos(a0);
     // Cross-section: circle with a rectangular notch on +X.
     const cs = new THREE.Shape();
-    cs.moveTo(xc, key.b / 2);
+    cs.moveTo(xc, k.b / 2);
     cs.absarc(0, 0, r, a0, Math.PI * 2 - a0, false);
-    cs.lineTo(r - key.t1, -key.b / 2);
-    cs.lineTo(r - key.t1, key.b / 2);
-    cs.lineTo(xc, key.b / 2);
-    const ex = new THREE.ExtrudeGeometry(cs, { depth: key.z1 - key.z0, bevelEnabled: false, curveSegments: 48 });
-    ex.translate(0, 0, key.z0);
+    cs.lineTo(r - k.t1, -k.b / 2);
+    cs.lineTo(r - k.t1, k.b / 2);
+    cs.lineTo(xc, k.b / 2);
+    const ex = new THREE.ExtrudeGeometry(cs, { depth: k.z1 - k.z0, bevelEnabled: false, curveSegments: 48 });
+    ex.translate(0, 0, k.z0);
     parts.push(creased(ex, 30));
     // End walls of the keyway.
     const notch = new THREE.Shape();
-    notch.moveTo(r - key.t1, -key.b / 2);
-    notch.lineTo(xc, -key.b / 2);
+    notch.moveTo(r - k.t1, -k.b / 2);
+    notch.lineTo(xc, -k.b / 2);
     notch.absarc(0, 0, r, -a0, a0, false);
-    notch.lineTo(r - key.t1, key.b / 2);
-    notch.lineTo(r - key.t1, -key.b / 2);
+    notch.lineTo(r - k.t1, k.b / 2);
+    notch.lineTo(r - k.t1, -k.b / 2);
     const capA = new THREE.ShapeGeometry(notch, 8);
-    capA.translate(0, 0, key.z0);
+    capA.translate(0, 0, k.z0);
     const capB = new THREE.ShapeGeometry(notch, 8);
     capB.rotateX(Math.PI);
-    capB.translate(0, 0, key.z1);
+    capB.translate(0, 0, k.z1);
     parts.push(capA, capB);
   }
   return merge(parts);

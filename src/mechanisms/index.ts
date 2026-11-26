@@ -5,6 +5,7 @@
  */
 import { registerCategory, registerEntry } from '../core/registry';
 import { spurGear } from './spur-gear';
+import { helicalBevel } from './helical-bevel';
 
 const line = 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"';
 const thin = 'fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"';
@@ -91,36 +92,13 @@ registerEntry({
 
 // ---------------------------------------------------------------- Mechanisms
 
-/** Two-stage gearbox: helical input stage, then a bevel stage that turns the output by 90°. */
-const helicalBevelThumb = `<svg viewBox="0 0 120 80" aria-hidden="true">
-  <path ${line} d="M14 20 H78 V64 H14 Z"/>
-  <path ${line} d="M78 30 H96 V58 H78"/>
-  <rect ${thin} x="24" y="40" width="10" height="16"/><path ${thin} d="M24 44 L34 40 M24 50 L34 44 M24 56 L34 50"/>
-  <rect ${thin} x="38" y="26" width="10" height="34"/><path ${thin} d="M38 32 L48 26 M38 40 L48 34 M38 48 L48 42 M38 56 L48 50"/>
-  <path ${thin} d="M54 34 L62 30 L62 54 L54 50 Z"/>
-  <path ${thin} d="M64 52 L84 52 L80 60 L68 60 Z"/>
-  <path ${line} stroke-dasharray="5 3 1.5 3" d="M2 48 H36 M38 43 H58 M74 48 V78"/>
-  <path ${line} d="M6 41 a7 7 0 1 0 0 14"/><path ${line} d="M81 74 a7 7 0 1 0 -14 0"/>
-</svg>`;
-
 const planetThumb = `<svg viewBox="0 0 120 80" aria-hidden="true">
   <circle ${line} cx="60" cy="40" r="34"/><circle ${line} cx="60" cy="40" r="10"/>
   <circle ${line} cx="60" cy="18" r="10"/><circle ${line} cx="79" cy="51" r="10"/><circle ${line} cx="41" cy="51" r="10"/>
   <path ${line} stroke-dasharray="4 3" d="M60 18 L79 51 L41 51 Z"/>
 </svg>`;
 
-registerEntry({
-  kind: 'teaser',
-  id: 'helical-bevel-gearbox',
-  category: 'mechanisms',
-  title: { bg: 'Цилиндрично-коничен редуктор', en: 'Helical-bevel gearbox' },
-  subtitle: {
-    bg: 'Косозъба цилиндрична и конична двойка в корпус, изходен вал под 90°',
-    en: 'Helical and bevel stages in a housing, output shaft at 90°',
-  },
-  thumbnail: helicalBevelThumb,
-  pro: true,
-});
+registerEntry(helicalBevel);
 registerEntry({
   kind: 'teaser',
   id: 'planetary',

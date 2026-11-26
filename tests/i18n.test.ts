@@ -93,6 +93,7 @@ describe('English translation', () => {
   }
   walk(catalogue(), out);
   walk(categories(), out);
+  for (const e of catalogue()) if (e.kind === 'mechanism' && e.id !== 'spur-gear') exercise(e, out);
 
   afterAll(() => {
     if (process.env.DUMP_MISSING) writeFileSync(process.env.DUMP_MISSING, JSON.stringify([...missing].sort(), null, 1));
