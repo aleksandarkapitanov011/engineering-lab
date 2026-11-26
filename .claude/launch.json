@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5174", "--strictPort"],
+      "runtimeArgs": ["vite", "--host", "--port", "5174", "--strictPort"],
       "cwd": "C:\\mobile app eng",
       "port": 5174
     }

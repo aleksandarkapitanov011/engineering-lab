@@ -437,7 +437,27 @@ p {
   top: 66px;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
+}
+
+.tool-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The single "Tools" button is only used on small screens (see the media query below). */
+.tool-btn.tool-toggle {
+  display: none;
+}
+
+.tool-toggle[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.tool-toggle-icon {
+  display: grid;
 }
 
 .tool-btn {
@@ -640,6 +660,32 @@ input[type='range'] {
   padding: 0 8px 6px 18px;
   touch-action: none;
   flex: none;
+}
+
+.sheet-btns {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+/* Collapsed: only the title bar stays, the panel keeps working and the view gets the space. */
+.sheet.collapsed .sheet-body {
+  display: none;
+}
+
+.sheet.collapsed .sheet-head {
+  cursor: pointer;
+  padding-bottom: calc(10px + var(--safe-b));
+}
+
+.sheet.collapsed .sheet-title {
+  font-size: 16px;
+}
+
+/* While the sheet is collapsed the speed panel behind it would only peek out half-hidden. */
+.model-tab.sheet-min .control-panel,
+.model-tab.sheet-min .tap-hint {
+  visibility: hidden;
 }
 
 .sheet-title {
@@ -1804,15 +1850,38 @@ input[type='range'] {
 
 /* Eight tools do not fit in one column on a phone: two columns, the basic tools on the right edge. */
 @media (max-height: 880px) {
-  .tool-col {
+  .tool-rail {
     display: grid;
     grid-auto-flow: column;
     grid-template-rows: repeat(4, auto);
     direction: rtl;
   }
 
-  .tool-col > * {
+  .tool-rail > * {
     direction: ltr;
+  }
+}
+
+/* Phones: the tools fold under one button and open as a menu, so they do not cover the model. */
+@media (max-width: 720px), (max-height: 600px) {
+  .tool-btn.tool-toggle {
+    display: flex;
+  }
+
+  .tool-rail {
+    display: none;
+  }
+
+  .tool-col.menu-open .tool-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(4, auto);
+    direction: rtl;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: blur(6px);
   }
 }
 

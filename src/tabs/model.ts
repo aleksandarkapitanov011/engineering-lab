@@ -570,7 +570,25 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const stressBtn = base.stress ? toolBtn(icons.stress, t('stress')) : null;
   const mountBtn = base.mounting ? toolBtn(icons.mount, t('mount')) : null;
   const measureBtn = base.measure ? toolBtn(icons.caliper, t('measure')) : null;
-  const toolCol = h('div', { class: 'tool-col' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn, mountBtn, measureBtn);
+  const toolList = h('div', { class: 'tool-rail' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn, mountBtn, measureBtn);
+  // On a phone the tools fold under one button, so they do not cover the model.
+  const toolIcon = h('span', { class: 'tool-toggle-icon', html: icons.tools });
+  const toolBadge = h('span', { class: 'tool-badge', hidden: true });
+  const toolToggle = h('button', { class: 'tool-btn tool-toggle', 'aria-expanded': 'false' }, toolIcon, h('span', null, t('tools')), toolBadge);
+  const toolCol = h('div', { class: 'tool-col' }, toolToggle, toolList);
+  const setToolMenu = (on: boolean): void => {
+    toolCol.classList.toggle('menu-open', on);
+    toolToggle.setAttribute('aria-expanded', String(on));
+    toolIcon.innerHTML = on ? icons.close : icons.tools;
+  };
+  toolToggle.addEventListener('click', () => setToolMenu(!toolCol.classList.contains('menu-open')));
+  toolList.addEventListener('click', (e) => {
+    if ((e.target as Element).closest('.tool-btn')) setToolMenu(false);
+  });
+  // The toggle shows a dot while any tool is switched on.
+  new MutationObserver(() => {
+    toolBadge.hidden = !toolList.querySelector('.tool-btn[aria-pressed="true"]');
+  }).observe(toolList, { subtree: true, attributes: true, attributeFilter: ['aria-pressed'] });
   let measureOverlay: MeasureOverlay | null = null;
   let playingBeforeStress = true;
   let overlay: CloseUpOverlay | null = null;
@@ -621,6 +639,17 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const hint = h('div', { class: 'tap-hint' }, t('tapHint'));
   el.append(h('div', { class: 'overlay-top' }, viewBtns), toolCol, hint, controlPanel);
   el.appendChild(sheet.el); // keep the sheet on top of the panel
+  // Collapsing the sheet hides the speed panel too and lets the model fill the freed space
+  // (close-up views keep their zoom, the forces view keeps room for the arrows).
+  let sheetMin = false;
+  sheet.onResize(() => {
+    const min = sheet.isOpen() && sheet.isCollapsed();
+    el.classList.toggle('sheet-min', min);
+    if (min === sheetMin) return; // opening refits on its own
+    sheetMin = min;
+    if (!sheet.isOpen()) return; // closing has its own handler
+    updateInsets(!isZoomed(panel), undefined, panel === 'forces' ? 1.45 : 1);
+  });
 
   const updateReadouts = (): void => {
     const speeds = solveSpeeds(mech.kinematics, playing ? rpm : 0);
