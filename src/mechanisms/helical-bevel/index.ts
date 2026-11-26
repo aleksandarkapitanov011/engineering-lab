@@ -8,6 +8,7 @@ import { makeParts } from './parts';
 import { assembly } from './assembly';
 import { theory, quiz } from './theory';
 import { drawings } from './drawings';
+import { createForces } from './forces';
 import { AXIS_Y, I_TOTAL, S1_Z, Z1, Z2, Z3, Z4 } from './params';
 
 const L = (bg: string, en: string): LText => ({ bg, en });
@@ -57,6 +58,7 @@ export const helicalBevel: Mechanism = {
     { label: L('i = i₁·i₂', 'i = i₁·i₂'), value: () => fmt(I_TOTAL, 0) },
   ],
   assembly,
+  forces: createForces(),
   drawings,
   theory,
   quiz,

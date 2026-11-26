@@ -7,10 +7,14 @@ The catalogue has two folders:
   shafts with keys, ball bearings and a base with bearing supports. It has every panel described below.
 - **Механизми (mechanisms)** – a **two-stage helical-bevel gearbox** (`src/mechanisms/helical-bevel/`): helical input
   stage (mₙ = 2, z 17/51, β ≈ 13.7°, a = 70 mm) and a straight bevel stage (m = 2.5, z 15/30, Σ = 90°), i = 6, output
-  shaft at 90°, three shafts, six bearings, keys and a cut-away cast housing. Stage 1 of this model: 3D with
-  kinematics, part information, the assembly / disassembly game, 5 theory pages with a quiz and a kinematic diagram
-  with the gear data. Helical gears are built by twisting the transverse involute along the axis; bevel gears by
-  lofting the heel outline towards the cone apex.
+  shaft at 90°, three shafts, six bearings, keys and a cut-away cast housing. 3D with kinematics, part information,
+  the assembly / disassembly game, 5 theory pages with a quiz, a kinematic diagram with the gear data, and a forces &
+  strength panel (`forces.ts`): 3D force vectors of both stages, bearing reactions from the statics of each shaft
+  (axial force on one fixed bearing), ISO 281 bearing life, tooth bending and contact of both stages (bevel as the
+  virtual spur gear on the back cone), keys and a bending + torsion check of the worst shaft section. Helical gears
+  are built by twisting the transverse involute along the axis; bevel gears by lofting the heel outline towards the
+  cone apex, with the heel face on the back cone. `tests/gearbox-mesh.test.ts` checks in 3D that the teeth of both
+  stages never overlap while turning.
 
 Stack: Vite + TypeScript + Three.js (no framework), Capacitor for Android. Everything runs offline;
 all geometry is generated procedurally (no model files). The app is bilingual (Bulgarian / English).

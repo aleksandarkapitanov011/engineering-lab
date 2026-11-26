@@ -76,6 +76,12 @@ function bevelHeel(z: number, delta: number, phase: number): Pt[] {
   });
 }
 
+/** Back-cone data of a bevel gear for bevelGear(): pitch radius at the heel and its projected root radius. */
+function bevelCone(z: number, delta: number): { rp: number; tanDelta: number; rMin: number } {
+  const rp = (MB * z) / 2;
+  return { rp, tanDelta: Math.tan(delta), rMin: rp - 1.25 * MB * Math.cos(delta) - 0.01 };
+}
+
 function keyGeometry(shaftR: number, k: { b: number; h: number; t1: number; L: number }, zc: number): THREE.BufferGeometry {
   const g = extrudeCentered(roundedRect(k.h, k.b, 0.6), k.L, { bevel: 0.4, curveSegments: 4 });
   g.translate(shaftR - k.t1 + k.h / 2, 0, zc);
@@ -229,7 +235,7 @@ export function makeParts(): PartDef[] {
         const grp = new THREE.Group();
         grp.add(new THREE.Mesh(steppedShaft(segs(SHAFT2), 0.8, SHAFT2_KEYWAY), materials.steel()));
         const heel = bevelHeel(Z3, DELTA3, 0);
-        grp.add(new THREE.Mesh(bevelGear(heel, RE * Math.cos(DELTA3), (RE - BB) / RE), materials.paint(BEVEL_COLOR, 0.6, 0.35)));
+        grp.add(new THREE.Mesh(bevelGear(heel, RE * Math.cos(DELTA3), (RE - BB) / RE, bevelCone(Z3, DELTA3)), materials.paint(BEVEL_COLOR, 0.6, 0.35)));
         return grp;
       },
       meta: {
@@ -356,12 +362,15 @@ export function makeParts(): PartDef[] {
       explode: { offset: [0, 0, -40], order: 1 },
       build: ({ materials }) => {
         const zHeel = RE * Math.cos(DELTA4);
-        const teeth = bevelGear(bevelHeel(Z4, DELTA4, Math.PI + Math.PI / Z4), zHeel, (RE - BB) / RE, [keyedBorePath(13, KEY3.b, KEY3.t2)]);
+        const cone = bevelCone(Z4, DELTA4);
+        // The heel face of the teeth is on the back cone; inside the root circle it is flat at zBack.
+        const zBack = zHeel + (cone.rp - cone.rMin) * cone.tanDelta;
+        const teeth = bevelGear(bevelHeel(Z4, DELTA4, Math.PI + Math.PI / Z4), zHeel, (RE - BB) / RE, cone, [keyedBorePath(13, KEY3.b, KEY3.t2)]);
         const disk = new THREE.Shape();
         disk.absarc(0, 0, DE4 / 2 - 4, 0, Math.PI * 2, false);
         disk.holes.push(keyedBorePath(13, KEY3.b, KEY3.t2));
         const diskGeo = extrudeCentered(disk, 4, { bevel: 0.4, curveSegments: 48 });
-        diskGeo.translate(0, 0, zHeel + 2);
+        diskGeo.translate(0, 0, zBack + 2); // behind the teeth, clear of the pinion tips
         const hub = new THREE.Shape();
         hub.absarc(0, 0, 20, 0, Math.PI * 2, false);
         hub.holes.push(keyedBorePath(13, KEY3.b, KEY3.t2));

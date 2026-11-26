@@ -247,9 +247,13 @@ function createForcesPanel(
   const legend = h(
     'div',
     { class: 'force-legend' },
-    h('span', null, h('i', { style: 'background:#ff5a3c' }), 'Ft'),
-    h('span', null, h('i', { style: 'background:#3c9dff' }), 'Fr'),
-    h('span', null, h('i', { style: 'background:#2fbf71' }), t('reactions')),
+    ...(first.legend
+      ? first.legend.map((l) => h('span', null, h('i', { style: 'background:' + l.color }), lt(l.label)))
+      : [
+          h('span', null, h('i', { style: 'background:#ff5a3c' }), 'Ft'),
+          h('span', null, h('i', { style: 'background:#3c9dff' }), 'Fr'),
+          h('span', null, h('i', { style: 'background:#2fbf71' }), t('reactions')),
+        ]),
   );
   const el = h(
     'div',

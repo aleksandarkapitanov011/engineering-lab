@@ -265,6 +265,8 @@ export interface ForcesDef {
   title: LText;
   intro: LText;
   params: LabParam[];
+  /** Colour legend of the arrows; the default shows Ft, Fr and the reactions. */
+  legend?: { color: string; label: LText }[];
   evaluate(values: Record<string, number>, inputRpm: number): ForcesResult;
 }
 

@@ -50,10 +50,10 @@ export const S1_Z = A1;
 /** Stage 1 mid-plane (local z of shafts 1 and 2). */
 export const STAGE1_Z = 83;
 
-/** Bearings (deep groove ball bearings). */
-export const BRG_6004 = { code: '6004', d: 20, D: 42, B: 12, n: 9, ball: 6.35 };
-export const BRG_6005 = { code: '6005', d: 25, D: 47, B: 12, n: 10, ball: 7.14 };
-export const BRG_6006 = { code: '6006', d: 30, D: 55, B: 13, n: 11, ball: 7.94 };
+/** Bearings (deep groove ball bearings); C / C0: dynamic / static load rating, N. */
+export const BRG_6004 = { code: '6004', d: 20, D: 42, B: 12, n: 9, ball: 6.35, C: 9950, C0: 5000 };
+export const BRG_6005 = { code: '6005', d: 25, D: 47, B: 12, n: 10, ball: 7.14, C: 11900, C0: 6550 };
+export const BRG_6006 = { code: '6006', d: 30, D: 55, B: 13, n: 11, ball: 7.94, C: 13800, C0: 8300 };
 
 /** Bearing centres in local z. */
 export const S1_BRG_A = 120; // left wall
@@ -75,8 +75,8 @@ export const SHAFT1: [number, number, number][] = [
 export const SHAFT1_KEYWAY = { z0: 135, z1: 160, b: 6, t1: 3.5 };
 
 export const SHAFT2: [number, number, number][] = [
-  [24, 37.5, 22], // core under the bevel teeth (pinion shaft)
-  [37.5, 42, 36], // pinion backing / shoulder of bearing B
+  [24, 40, 22], // core under the bevel teeth (pinion shaft); the gear tips at the heel reach s ≈ 38.6
+  [40, 42, 36], // pinion backing / shoulder of bearing B
   [42, 55, 30], // bearing B seat (6006)
   [55, 72, 28],
   [72, 94, 26], // seat of the large helical gear
@@ -98,6 +98,9 @@ export const SHAFT3_OUT_KEYWAY = { z0: 120, z1: 150, b: 6, t1: 3.5 };
 
 export const KEY2 = { b: 8, h: 7, t1: 4, t2: 3.3, L: 16 };
 export const KEY3 = { b: 8, h: 7, t1: 4, t2: 3.3, L: 14 };
+/** Keys of the shaft ends (not modelled as parts): coupling on the input, driven machine on the output. */
+export const KEY_IN = { b: 6, h: 6, t1: 3.5, L: 25, d: 18 };
+export const KEY_OUT = { b: 6, h: 6, t1: 3.5, L: 30, d: 22 };
 
 /** Large helical gear body: rim, web with lightening holes, hub. */
 export const GEAR2_BODY = { rimInner: 44, web: 8, hubR: 22, bore: 13, holes: 6, holeR: 6.5, holePitchR: 33 };

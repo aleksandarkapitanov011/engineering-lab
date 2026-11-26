@@ -3,7 +3,8 @@
  *  - Helical gear: the transverse involute outline is stacked in slices along the axis and turned a little
  *    in every slice (helix). Holes (bore, rim) stay straight.
  *  - Straight bevel gear: the heel outline is lofted towards the cone apex (every point scaled about the
- *    apex), so tips, roots and flanks all converge there, as on a real bevel gear.
+ *    apex), so tips, roots and flanks all converge there, as on a real bevel gear. The heel face is on the
+ *    back cone, so the tip and root cones get the correct angles δ ± θ.
  *  - Housing walls: flat plates with bearing bores.
  */
 import * as THREE from 'three';
@@ -95,31 +96,44 @@ export function helicalGear(outline: Pt[], width: number, twist: number, holes: 
 }
 
 /**
- * Straight bevel gear, local frame: apex at the origin, axis +z, heel plane at z = zHeel.
- * `heel` is the tooth outline in the heel plane; it is scaled about the apex down to `toeScale` (toe).
+ * Straight bevel gear, local frame: apex at the origin, axis +z. `heel` is the tooth outline seen along the
+ * axis at the heel, with the radial tooth heights already projected (× cos δ).
+ * The heel face lies on the back cone (perpendicular to the pitch cone): a point at radius r sits at
+ * z = zHeel − (r − rp)·tan δ, so tooth tips are pulled back and roots pushed out, as on a real gear.
+ * Inside the root circle (r < rMin) the face is flat. The solid is scaled about the apex down to
+ * `toeScale` (toe), so every tooth line runs to the apex.
  */
-export function bevelGear(heel: Pt[], zHeel: number, toeScale: number, holes: THREE.Path[] = [], slices = 6): THREE.BufferGeometry {
+export function bevelGear(
+  heel: Pt[],
+  zHeel: number,
+  toeScale: number,
+  cone: { rp: number; tanDelta: number; rMin: number },
+  holes: THREE.Path[] = [],
+  slices = 6,
+): THREE.BufferGeometry {
   const o = ccw(heel);
   const hp = holes.map((h) => cw(pathPoints(h)));
+  const zAt = (x: number, y: number): number => zHeel - (Math.max(Math.hypot(x, y), cone.rMin) - cone.rp) * cone.tanDelta;
+  const zFlat = zAt(0, 0);
   const rings: V3[][] = [];
-  // From toe (small z) to heel (large z), so the CCW rings go up in z.
+  // From toe to heel, so the CCW rings go up in z.
   for (let k = 0; k <= slices; k++) {
     const s = toeScale + ((1 - toeScale) * k) / slices;
-    rings.push(o.map(([x, y]) => [x * s, y * s, zHeel * s]));
+    rings.push(o.map(([x, y]) => [x * s, y * s, zAt(x, y) * s]));
   }
   const tris: number[] = [];
   sides(rings, false, tris);
-  const zToe = zHeel * toeScale;
-  cap(o, hp, zHeel, true, ([x, y]) => [x, y, zHeel], tris);
+  cap(o, hp, zFlat, true, ([x, y]) => [x, y, zAt(x, y)], tris);
+  const t = toeScale;
   cap(
-    o.map(([x, y]) => [x * toeScale, y * toeScale] as Pt),
+    o.map(([x, y]) => [x * t, y * t] as Pt),
     hp,
-    zToe,
+    zFlat * t,
     false,
-    ([x, y]) => [x, y, zToe],
+    ([x, y]) => [x, y, zAt(x / t, y / t) * t],
     tris,
   );
-  for (const h of hp) holeWall(h, zToe, zHeel, tris);
+  for (const h of hp) holeWall(h, zFlat * t, zFlat, tris);
   return creased(fromTriangles(tris), 32);
 }
 
