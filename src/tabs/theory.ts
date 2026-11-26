@@ -325,6 +325,7 @@ function createTheoryTab(mech: Mechanism): TabView {
   };
 
   const onSettled = (): void => {
+    if (phone.matches && desk.scrollTop > 0) desk.scrollTo({ top: 0 });
     handles.forEach((hd) => hd?.stop());
     ensureIllus(cur + 1);
     const hd = ensureIllus(cur);
@@ -467,8 +468,25 @@ function createTheoryTab(mech: Mechanism): TabView {
   book.addEventListener('pointerup', endDrag);
   book.addEventListener('pointercancel', endDrag);
 
+  // Phones: the page does not scroll inside the book (scrolling inside a 3D-turned leaf is unreliable on
+  // mobile browsers); instead the book is as tall as its longest page and the whole desk scrolls.
+  const phone = window.matchMedia('(max-width: 720px)');
+  const bookWrap = desk.firstElementChild as HTMLElement;
+  const fitHeight = (): void => {
+    if (!phone.matches) {
+      if (bookWrap.style.height) bookWrap.style.height = '';
+      return;
+    }
+    bookWrap.style.height = '';
+    let hmax = bookWrap.clientHeight;
+    for (const leaf of leaves) if (leaf.paper) hmax = Math.max(hmax, leaf.paper.scrollHeight);
+    bookWrap.style.height = `${Math.ceil(hmax)}px`;
+  };
+  phone.addEventListener?.('change', () => fitHeight());
+
   const snapAll = (): void => {
     for (const leaf of leaves) if (leaf.paper) snapToLines(leaf.paper);
+    fitHeight();
   };
   const ro = new ResizeObserver(() => snapAll());
 

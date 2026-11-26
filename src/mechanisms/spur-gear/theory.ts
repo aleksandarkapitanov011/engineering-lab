@@ -1,10 +1,12 @@
 /**
- * Theory booklet: six pages with animated SVG illustrations computed from the same involute math
- * as the 3D model (tooth shapes, line of action, contact points, undercut trochoid).
+ * Theory booklet: six pages with animated illustrations computed from the same involute math as the 3D model
+ * (tooth shapes, line of action, contact points, undercut trochoid). The gears are real 3D meshes under a
+ * drawing sheet (ui/illus3d.ts → sheet3d): the drawing lies in the plane of the gear faces and tilts with them.
  */
 import type { TheoryPage } from '../../core/types';
 import { contactRatio, deg, gearDims, gearOutline, inv, matingPhase, minTeethNoUndercut, polygonPath } from '../../core/involute';
-import { animated, arcPath, arrowDefs, label, makeRoot, svg } from '../../ui/illus';
+import { arcPath, arrowDefs, label, svg } from '../../ui/illus';
+import { sheet3d, type Sheet3D } from '../../ui/illus3d';
 import { tr } from '../../i18n';
 
 const PIN = '#4d82b3';
@@ -26,10 +28,19 @@ function gear(
   z: number,
   phase: number,
   fill: string,
-  o: { backlash?: number; bore?: number; spoke?: string; m?: number; opacity?: number } = {},
+  o: { backlash?: number; bore?: number; spoke?: string; m?: number; opacity?: number; flat?: boolean } = {},
 ): SVGGElement {
   const m = o.m ?? 2;
   const g = svg('g', {}, parent);
+  const bore = o.bore ?? (m * z) / 8;
+  if (stage && !o.flat) {
+    // Real 3D gear under the sheet; the SVG group only carries its transform (and the spoke).
+    stage.gear(g, { m, z, phase, backlash: o.backlash ?? 0.05, color: fill, bore, opacity: o.opacity, width: 5 });
+    if (o.spoke) {
+      svg('line', { x1: bore, y1: 0, x2: (m * z) / 2 - m * 1.6, y2: 0, stroke: o.spoke, 'stroke-width': 3, 'stroke-linecap': 'round', ...NSW }, g);
+    }
+    return g;
+  }
   svg(
     'path',
     {
@@ -43,7 +54,6 @@ function gear(
     },
     g,
   );
-  const bore = o.bore ?? (m * z) / 8;
   svg('circle', { r: bore, fill: 'var(--surface)', stroke: 'var(--text)', 'stroke-width': 1, ...NSW }, g);
   if (o.spoke) {
     svg('line', { x1: bore, y1: 0, x2: (m * z) / 2 - m * 1.6, y2: 0, stroke: o.spoke, 'stroke-width': 3, 'stroke-linecap': 'round', ...NSW }, g);
@@ -51,12 +61,19 @@ function gear(
   return g;
 }
 
+/** The 3D stage of the page being built (pages are built one at a time). */
+let stage: Sheet3D | null = null;
+function begin(host: HTMLElement, view?: Parameters<typeof sheet3d>[1]): { st: Sheet3D; root: SVGSVGElement } {
+  stage = sheet3d(host, view);
+  return { st: stage, root: stage.root };
+}
+
 const rotDeg = (rad: number): string => `rotate(${((rad * 180) / Math.PI).toFixed(3)})`;
 
 // ------------------------------------------------------------------ Page 1
 
 function page1(host: HTMLElement) {
-  const root = makeRoot(host);
+  const { st, root } = begin(host);
   arrowDefs(root, 'p1', 'var(--accent)');
   const k = 2.75;
   const c1x = 92;
@@ -77,7 +94,7 @@ function page1(host: HTMLElement) {
   pp.setAttribute('stroke', 'var(--surface)');
   label(root, c1x + 20 * k + 4, 16, 'зацепване', { size: 12, color: 'var(--text-dim)' });
   svg('line', { x1: c1x + 20 * k, y1: 21, x2: c1x + 20 * k, y2: cy - 8, stroke: 'var(--text-dim)', 'stroke-width': 1 }, root);
-  return animated(root, (t) => {
+  return st.animate((t) => {
     const a = t * 0.9;
     g1.setAttribute('transform', rotDeg(a));
     g2.setAttribute('transform', rotDeg((-a * 20) / 40));
@@ -87,7 +104,7 @@ function page1(host: HTMLElement) {
 // ------------------------------------------------------------------ Page 2
 
 function page2(host: HTMLElement) {
-  const root = makeRoot(host);
+  const { st, root } = begin(host);
   const k = 5.2;
   const cx = 128;
   const cy = 150;
@@ -117,7 +134,7 @@ function page2(host: HTMLElement) {
   svg('polyline', { points: `${cx + rp * Math.cos(-(a0 + a1) / 2) + 4},${cy + rp * Math.sin(-(a0 + a1) / 2) - 4} 262,212 268,212`, fill: 'none', stroke: 'var(--text-dim)', 'stroke-width': 1 }, root);
   label(root, 272, 262, 'm = 2 mm,  z = 20', { anchor: 'start', size: 13, color: 'var(--text-dim)' });
   const all = [...items.map((i) => [i.el, i.tx] as const), [pArc, pLab] as const];
-  return animated(root, (t) => {
+  return st.animate((t) => {
     const active = Math.floor(t / 1.6) % all.length;
     all.forEach(([shape, txt], i) => {
       const on = i === active;
@@ -130,7 +147,7 @@ function page2(host: HTMLElement) {
 // ------------------------------------------------------------------ Page 3
 
 function page3(host: HTMLElement) {
-  const root = makeRoot(host);
+  const { st, root } = begin(host);
   arrowDefs(root, 'p3', 'var(--accent)');
   const k = 7.5;
   const z1 = 20;
@@ -188,7 +205,7 @@ function page3(host: HTMLElement) {
   const dots = [0, 1, 2].map(() => svg('circle', { r: 5.5, fill: '#ffffff', stroke: ACC, 'stroke-width': 3 }, root));
   const psiB = Math.PI / (2 * z1) - 0.02 / 20 + inv(al);
   const omega = (2 * Math.PI) / z1 / 2.6;
-  return animated(root, (t) => {
+  return st.animate((t) => {
     const phi = t * omega;
     g1.setAttribute('transform', rotDeg(phi));
     g2.setAttribute('transform', rotDeg((-phi * z1) / z2));
@@ -213,7 +230,7 @@ function page3(host: HTMLElement) {
 // ------------------------------------------------------------------ Page 4
 
 function page4(host: HTMLElement) {
-  const root = makeRoot(host);
+  const { st, root } = begin(host);
   arrowDefs(root, 'p4', 'var(--accent)');
   const k = 2.5;
   const c1x = 100;
@@ -228,7 +245,7 @@ function page4(host: HTMLElement) {
   const n1 = label(root, 20, 262, '', { anchor: 'start', size: 14, weight: 700 });
   const n2 = label(root, 20, 284, '', { anchor: 'start', size: 14, weight: 700 });
   label(root, 380, 284, 'i = z₂/z₁ = 2', { anchor: 'end', size: 15, color: ACC, weight: 800 });
-  return animated(root, (t) => {
+  return st.animate((t) => {
     const a = t * 1.1;
     g1.setAttribute('transform', rotDeg(a));
     g2.setAttribute('transform', rotDeg(-a / 2));
@@ -241,7 +258,7 @@ function page4(host: HTMLElement) {
 // ------------------------------------------------------------------ Page 5
 
 function page5(host: HTMLElement) {
-  const root = makeRoot(host);
+  const { st, root } = begin(host);
   arrowDefs(root, 'p5', 'var(--text)');
   const k = 1.75;
   const c1x = 66;
@@ -268,14 +285,14 @@ function page5(host: HTMLElement) {
   const zk = 15;
   const w = mathGroup(inset, ix - 20 * zk, iy, zk);
   const B = 0.55;
-  const p1 = gear(w, 20, 0, PIN, { backlash: B });
+  const p1 = gear(w, 20, 0, PIN, { backlash: B, flat: true });
   const g2wrap = svg('g', { transform: 'translate(60 0)' }, w);
-  gear(g2wrap, 40, matingPhase(40), GEAR, { backlash: B });
+  gear(g2wrap, 40, matingPhase(40), GEAR, { backlash: B, flat: true });
   svg('circle', { cx: ix, cy: iy, r: ir, fill: 'none', stroke: 'var(--text)', 'stroke-width': 1.5 }, root);
   label(root, ix, iy + ir + 20, 'j – страничен луфт', { size: 12, weight: 700 });
   label(root, ix, iy + ir + 36, '(увеличено ×8)', { size: 11, color: 'var(--text-dim)' });
   const amp = (B / 20) * 0.95;
-  return animated(root, (t) => {
+  return st.animate((t) => {
     p1.setAttribute('transform', rotDeg(amp * Math.sin(t * 2.4)));
   });
 }
@@ -283,7 +300,7 @@ function page5(host: HTMLElement) {
 // ------------------------------------------------------------------ Page 6
 
 function page6(host: HTMLElement) {
-  const root = makeRoot(host);
+  const { st, root } = begin(host);
   svg('line', { x1: 200, y1: 10, x2: 200, y2: 290, stroke: 'var(--line)', 'stroke-width': 1 }, root);
   label(root, 100, 22, 'Подрязване (z = 8)', { size: 13, weight: 700 });
   label(root, 300, 22, 'Грешно междуосие', { size: 13, weight: 700 });
@@ -364,7 +381,7 @@ function page6(host: HTMLElement) {
     const rb = d18.db / 2;
     return (2 * Math.sqrt(ra * ra - rb * rb) - a * Math.sin(aw)) / d18.pb;
   };
-  return animated(root, (t) => {
+  return st.animate((t) => {
     const phi = Math.sin(t * 0.9) * 0.9;
     rack.setAttribute('points', rackPts(phi));
     const a = a0 + 0.6 + 1.6 * Math.sin(t * 0.8);

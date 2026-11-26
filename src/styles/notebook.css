@@ -255,6 +255,39 @@
   display: block;
 }
 
+/* Small pause / play button in the corner of every animated figure. */
+.illus3d-pause {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(33, 59, 115, 0.25);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--nb-ink);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.illus3d-pause:hover {
+  background: #fff;
+}
+
+.nb-fig .illus .illus3d-pause svg {
+  position: static;
+  width: 15px;
+  height: 15px;
+}
+
+.illus3d-pause[aria-pressed='true'] {
+  color: var(--nb-red);
+}
+
 .nb-fig .illus text.illus3d-label {
   font-family: var(--nb-font);
   paint-order: stroke;
@@ -786,5 +819,19 @@
   .nb-paper {
     padding-left: 66px;
     padding-right: 30px;
+  }
+}
+
+/* Phones: the whole desk scrolls (the book takes the height of its longest page, set in theory.ts). */
+@media (max-width: 720px) {
+  .nb-desk {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    align-items: flex-start;
+    padding-bottom: 28px;
+  }
+
+  .nb-paper {
+    overflow: hidden;
   }
 }

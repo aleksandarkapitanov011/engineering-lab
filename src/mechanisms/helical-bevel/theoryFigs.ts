@@ -141,7 +141,7 @@ export function conesFig(host: HTMLElement): IllustrationHandle {
     say(c, apex, L('общ връх', 'common apex'), { color: RED, dx: 14, dy: -10, size: 19, anchor: 'start' });
     say(c, V(-46, AXIS_Y + 24, -6), L(`δ₃ ≈ ${deg(DELTA3)}°`, `δ₃ ≈ ${deg(DELTA3)}°`), { size: 19, color: '#2f63a8' });
     say(c, V(30, AXIS_Y + 30, 44), L(`δ₄ ≈ ${deg(DELTA4)}°`, `δ₄ ≈ ${deg(DELTA4)}°`), { size: 19, color: '#b35a1c' });
-    const sigma = svg('text', { x: 340, y: 40, 'text-anchor': 'middle', 'font-size': 22, 'font-weight': 700, fill: RED, class: 'illus3d-label' }, c.overlay);
+    const sigma = svg('text', { x: 300, y: 42, 'text-anchor': 'middle', 'font-size': 22, 'font-weight': 700, fill: RED, class: 'illus3d-label' }, c.overlay);
     sigma.textContent = 'Σ = 90°';
     // From the apex side, where neither shaft is in the way.
     const target = V(-16, AXIS_Y + 4, 18);
@@ -169,7 +169,7 @@ export function directionsFig(host: HTMLElement): IllustrationHandle {
     const p4b = V(6, AXIS_Y + 42, 74);
     say(c, p3b, L('Fₐ₃', 'Fₐ₃'), { color: '#2f63a8', size: 19, dx: -12, dy: -6, anchor: 'end' });
     say(c, p4b, L('Fₐ₄', 'Fₐ₄'), { color: '#b35a1c', size: 19, dx: 12, dy: 6, anchor: 'start' });
-    const note = svg('text', { x: 392, y: 34, 'text-anchor': 'end', 'font-size': 17, fill: PENCIL, class: 'illus3d-label' }, c.overlay);
+    const note = svg('text', { x: 356, y: 30, 'text-anchor': 'end', 'font-size': 17, fill: PENCIL, class: 'illus3d-label' }, c.overlay);
     note.textContent = lt(L('конусите се отблъскват', 'the cones push apart'));
     const target = V(-45, AXIS_Y, 38);
     const dir = V(0.75, 1.25, 0.6);
