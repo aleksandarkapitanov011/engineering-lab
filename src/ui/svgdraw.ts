@@ -3,7 +3,7 @@
  * Line types: thick (visible outlines), thin (dimensions, hatching), centre (dash-dot).
  * Any element can be wrapped with a note key so the drawing tab can explain it on tap.
  */
-import { tr } from '../i18n';
+import { lt, tr } from '../i18n';
 
 export const f = (n: number): string => (Math.round(n * 1000) / 1000).toString();
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -196,14 +196,14 @@ export function titleBlock(x2: number, y2: number, tb: TitleBlock, key = 'title'
   s += line(x + 110, y, x + 110, y2, 'thin') + line(x + 145, y + 12, x + 145, y2, 'thin');
   const lab = (lx: number, ly: number, t: string): string => text(lx + 1.5, ly + 3.4, t, { anchor: 'start', size: 2.2, cls: 'label' });
   const val = (vx: number, vy: number, t: string, size = 3.6): string => text(vx + 2, vy + 9.5, t, { anchor: 'start', size });
-  s += lab(x, y, 'Наименование') + val(x, y, tb.name, 4.6);
-  s += lab(x + 110, y, 'Чертеж №') + val(x + 110, y, tb.number);
-  s += lab(x, y + 12, 'Материал') + val(x, y + 12, tb.material, 3.2);
-  s += lab(x + 110, y + 12, 'Мащаб') + val(x + 110, y + 12, tb.scale);
-  s += lab(x + 145, y + 12, 'Лист') + val(x + 145, y + 12, tb.sheet);
-  s += lab(x, y + 24, 'Разработил') + val(x, y + 24, tb.author, 3.2);
-  s += lab(x + 110, y + 24, 'Дата') + val(x + 110, y + 24, tb.date);
-  s += lab(x + 145, y + 24, 'Маса') + val(x + 145, y + 24, tb.mass ?? '—');
+  s += lab(x, y, lt({ bg: 'Наименование', en: 'Name' })) + val(x, y, tb.name, 4.6);
+  s += lab(x + 110, y, lt({ bg: 'Чертеж №', en: 'Drawing No.' })) + val(x + 110, y, tb.number);
+  s += lab(x, y + 12, lt({ bg: 'Материал', en: 'Material' })) + val(x, y + 12, tb.material, 3.2);
+  s += lab(x + 110, y + 12, lt({ bg: 'Мащаб', en: 'Scale' })) + val(x + 110, y + 12, tb.scale);
+  s += lab(x + 145, y + 12, lt({ bg: 'Лист', en: 'Sheet' })) + val(x + 145, y + 12, tb.sheet);
+  s += lab(x, y + 24, lt({ bg: 'Разработил', en: 'Drawn by' })) + val(x, y + 24, tb.author, 3.2);
+  s += lab(x + 110, y + 24, lt({ bg: 'Дата', en: 'Date' })) + val(x + 110, y + 24, tb.date);
+  s += lab(x + 145, y + 24, lt({ bg: 'Маса', en: 'Mass' })) + val(x + 145, y + 24, tb.mass ?? '—');
   return note(key, s, { x, y, w, h: hgt });
 }
 

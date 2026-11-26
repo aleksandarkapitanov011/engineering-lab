@@ -2,10 +2,10 @@
  * Drawing of the helical-bevel gearbox: kinematic diagram (ISO 3952 symbols), data of the four gears and
  * the ratio calculation. Text is passed already in the current language.
  */
-import type { DrawingDef, DrawingNote, LText } from '../../core/types';
-import { lt } from '../../i18n';
-import { arrowHead, f, line, note, sheetEnd, sheetStart, text, titleBlock } from '../../ui/svgdraw';
-import { BB, BETA, D1, D2, DE3, DE4, DELTA3, DELTA4, I1, I2, I_TOTAL, MB, MN, RE, Z1, Z2, Z3, Z4, A1 } from './params';
+import type { DrawingDef, DrawingNote, LText } from '../../../core/types';
+import { lt } from '../../../i18n';
+import { arrowHead, f, line, note, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
+import { BB, BETA, D1, D2, DE3, DE4, DELTA3, DELTA4, I1, I2, I_TOTAL, MB, MN, RE, Z1, Z2, Z3, Z4, A1 } from '../params';
 
 const L = (bg: string, en: string): LText => ({ bg, en });
 const N = (title: LText, body: LText): DrawingNote => ({ title, body });
@@ -144,9 +144,9 @@ function schemeSvg(): string {
     number: 'EL-HB-000',
     author: 'Engineering Lab',
     date: '2026',
-    sheet: '1/1',
+    sheet: '1/7',
   });
   return s + sheetEnd();
 }
 
-export const drawings: DrawingDef[] = [{ id: 'scheme', title: L('Схема и данни', 'Diagram and data'), render: schemeSvg, notes: schemeNotes }];
+export const scheme: DrawingDef = { id: 'scheme', title: L('Схема и данни', 'Diagram and data'), render: schemeSvg, notes: schemeNotes };
