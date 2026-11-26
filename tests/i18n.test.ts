@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { lt, missing, normalise, enNumber, setLang, tr, registerDictionary } from '../src/i18n';
 import { spurGear } from '../src/mechanisms/spur-gear';
-import { catalogue } from '../src/core/registry';
+import { catalogue, categories } from '../src/core/registry';
 import '../src/mechanisms';
 import type { Mechanism } from '../src/core/types';
 
@@ -92,6 +92,7 @@ describe('English translation', () => {
     }
   }
   walk(catalogue(), out);
+  walk(categories(), out);
 
   afterAll(() => {
     if (process.env.DUMP_MISSING) writeFileSync(process.env.DUMP_MISSING, JSON.stringify([...missing].sort(), null, 1));

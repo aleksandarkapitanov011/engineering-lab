@@ -1930,3 +1930,34 @@ input[type='range'] {
   font-weight: 800;
   letter-spacing: 0.04em;
 }
+
+/* ---------- Catalogue folders ---------- */
+.card.folder {
+  color: inherit;
+  text-decoration: none;
+}
+
+.folder-count {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent) !important;
+}
+
+.folder-head {
+  gap: 12px;
+}
+
+.folder-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.folder-title h1 {
+  font-size: 22px;
+}
+
+.folder-title p {
+  color: var(--text-dim);
+  font-size: 14px;
+}

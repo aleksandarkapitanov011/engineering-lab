@@ -2,8 +2,8 @@
  * App shell: catalogue (home) and the mechanism view with the bottom tab bar.
  * It only uses the registry and the generic Mechanism interface.
  */
-import { catalogue, getMechanism } from '../core/registry';
-import type { CatalogEntry, Mechanism } from '../core/types';
+import { categories, entriesIn, getCategory, getMechanism } from '../core/registry';
+import type { CatalogEntry, CategoryDef, Mechanism } from '../core/types';
 import { entitlements } from '../core/entitlements';
 import { storage, type Theme } from '../core/storage';
 import { lang, lt, saveLang, t } from '../i18n';
@@ -65,6 +65,9 @@ export class Shell {
       }
       const tab = (TABS.find((x) => x.id === parts[2])?.id ?? 'model') as TabId;
       this.showMechanism(mech, tab);
+    } else if (parts[0] === 'c' && parts[1] && getCategory(parts[1])) {
+      this.leaveMechanism();
+      this.renderCategory(getCategory(parts[1])!);
     } else {
       this.leaveMechanism();
       this.renderHome();
@@ -106,8 +109,8 @@ export class Shell {
   }
 
   private renderHome(): void {
-    const grid = h('div', { class: 'catalogue' });
-    for (const entry of catalogue()) grid.appendChild(this.card(entry));
+    const grid = h('div', { class: 'catalogue folders' });
+    for (const cat of categories()) grid.appendChild(this.folderCard(cat));
     const page = h(
       'div',
       { class: 'home' },
@@ -126,6 +129,48 @@ export class Shell {
       grid,
     );
     this.root.replaceChildren(page);
+  }
+
+  /** A catalogue folder on the home screen: picture, name, what is inside. */
+  private folderCard(cat: CategoryDef): HTMLElement {
+    const items = entriesIn(cat.id);
+    const ready = items.filter((e) => e.kind === 'mechanism').length;
+    const soon = items.length - ready;
+    const thumb = h('div', { class: 'card-thumb' });
+    thumb.appendChild(fromHTML(cat.thumbnail));
+    return h(
+      'a',
+      { class: 'card folder', href: `#/c/${cat.id}`, 'aria-label': lt(cat.title) },
+      thumb,
+      h(
+        'div',
+        { class: 'card-text' },
+        h('h3', null, lt(cat.title)),
+        h('p', null, lt(cat.subtitle)),
+        h('p', { class: 'folder-count' }, `${t('catModels')}: ${ready} · ${t('soon')}: ${soon}`),
+      ),
+      h('span', { class: 'card-cta', html: icons.chevronRight }),
+    );
+  }
+
+  /** The entries of one folder. */
+  private renderCategory(cat: CategoryDef): void {
+    const grid = h('div', { class: 'catalogue' });
+    for (const entry of entriesIn(cat.id)) grid.appendChild(this.card(entry));
+    this.root.replaceChildren(
+      h(
+        'div',
+        { class: 'home' },
+        h(
+          'header',
+          { class: 'home-head folder-head' },
+          h('a', { class: 'icon-btn', href: '#/', 'aria-label': t('back'), html: icons.back }),
+          h('div', { class: 'folder-title' }, h('h1', null, lt(cat.title)), h('p', null, lt(cat.subtitle))),
+          h('div', { class: 'head-btns' }, this.langButton(), this.themeButton()),
+        ),
+        grid,
+      ),
+    );
   }
 
   private card(entry: CatalogEntry): HTMLElement {
@@ -205,7 +250,7 @@ export class Shell {
       const header = h(
         'header',
         { class: 'mech-head' },
-        h('a', { class: 'icon-btn', href: '#/', 'aria-label': t('back'), html: icons.back }),
+        h('a', { class: 'icon-btn', href: `#/c/${mech.category}`, 'aria-label': t('back'), html: icons.back }),
         h('div', { class: 'mech-title' }, h('h1', null, lt(mech.title)), h('p', null, lt(mech.subtitle))),
         h('div', { class: 'head-btns' }, this.langButton(), this.themeButton()),
       );

@@ -34,6 +34,7 @@ export function mechanismFor(L: Layout): Mechanism {
   return {
     kind: 'mechanism',
     id: 'spur-gear',
+    category: 'gears',
     title: { bg: 'Цилиндрична зъбна предавка', en: 'Spur gear pair' },
     subtitle: { bg: 'Две прави зъбни колела, m = 2, z₁ = 20, z₂ = 40', en: 'Two spur gears, m = 2, z₁ = 20, z₂ = 40' },
     thumbnail,

@@ -150,6 +150,8 @@ interface in `src/core/types.ts`, so adding one never touches them.
 14. **Export** the `Mechanism` from `index.ts` (also `camera` view directions, `section` plane, `maxInputRpm`,
    catalogue `thumbnail` SVG, optional `pro: true`).
 15. **Register** it in `src/mechanisms/index.ts` with `registerEntry(myMechanism)` and remove its teaser entry.
+   Every entry has a `category` (catalogue folder): `gears` (gear drives) or `mechanisms` (complete gearboxes);
+   new folders are added with `registerCategory({ id, title, subtitle, thumbnail })`.
 
 ## Localisation
 

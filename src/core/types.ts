@@ -394,6 +394,8 @@ export interface MeasureDef {
 
 export interface Mechanism {
   kind: 'mechanism';
+  /** Catalogue folder (CategoryDef id). */
+  category: string;
   /** Optional measuring exercise. */
   measure?: MeasureDef;
   /** Optional mounting-error view. */
@@ -426,10 +428,21 @@ export interface Mechanism {
   maxInputRpm: number;
 }
 
+/** A folder of the catalogue (e.g. gear drives, complete mechanisms). */
+export interface CategoryDef {
+  id: string;
+  title: LText;
+  subtitle: LText;
+  /** Inline SVG markup for the folder tile. */
+  thumbnail: string;
+}
+
 /** A locked placeholder in the catalogue. */
 export interface TeaserEntry {
   kind: 'teaser';
   id: string;
+  /** Catalogue folder (CategoryDef id). */
+  category: string;
   title: LText;
   subtitle: LText;
   thumbnail: string;
