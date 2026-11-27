@@ -56,6 +56,22 @@ npm run preview    # serve the production build
 npm test           # unit tests (Vitest)
 ```
 
+## Install on a phone (web app, works offline)
+
+The production build is an installable web app (PWA): `public/manifest.webmanifest`, icons in `public/icons/`
+(drawn by `node scripts/icons.mjs`) and a service worker `sw.js` that `vite.config.ts` generates with the list
+of every built file. After the first visit everything is cached, so the installed app opens without a network
+and without the computer. A new build changes the cache name; the app picks it up on the next online start.
+
+Installing needs HTTPS (browsers do not allow it from `http://192.168.x.x`). Two easy ways:
+
+- **GitHub Pages** – push the project to a GitHub repository, then Settings → Pages → Source: "GitHub
+  Actions". `.github/workflows/pages.yml` runs the tests, builds and publishes on every push to `main`.
+- **Netlify Drop** – `npm run build`, then drag the `dist/` folder onto https://app.netlify.com/drop.
+
+Then open the address on the phone and choose "Install app" / "Add to Home screen". In the native Android
+build (Capacitor) the service worker is not registered.
+
 ## Build the Android debug APK
 
 The `android/` project is already generated (`npx cap add android`). After any change to the web code:
