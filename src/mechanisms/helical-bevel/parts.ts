@@ -4,6 +4,7 @@ import type { LText, PartDef } from '../../core/types';
 import { gearOutline, type Pt } from '../../core/involute';
 import { ballBearing, circlePath, extrudeCentered, keyedBorePath, roundedRect, steppedShaft } from '../../three/geom';
 import { bevelGear, helicalGear, merge, wallPlate } from './geometry';
+import { castLettering, decal, nameplateTexture, rotationSticker, sightGlassTexture, warningSticker } from '../../three/decals';
 import {
   ALPHA_T,
   AXIS_Y,
@@ -249,7 +250,7 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
     capBolts.push(bolts.applyMatrix4(m));
   }
 
-  // Roof of the cover with an inspection lid, a breather and two lifting eyes.
+  // Roof of the cover.
   const roof = new THREE.Shape();
   roof.moveTo(xL, -zF);
   roof.lineTo(xR, -zF);
@@ -260,36 +261,81 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
   roofGeo.rotateX(-Math.PI / 2);
   roofGeo.translate(0, top + 4, 0);
   upper.push(roofGeo);
-  const lid = extrudeCentered(roundedRect(70, 50, 5), 5, { bevel: 0.8, curveSegments: 6 });
+  // ---- Small parts, as on a real gearbox.
+  const steel: THREE.BufferGeometry[] = [];
+  const washers: THREE.BufferGeometry[] = [];
+  const brassParts: THREE.BufferGeometry[] = [];
+  const rubber: THREE.BufferGeometry[] = [];
+  const copper: THREE.BufferGeometry[] = [];
+  const painted: THREE.BufferGeometry[] = [];
+  /** Hex head + washer, standing on a surface at `at` with the bolt axis `axis` (outwards). */
+  const bolt = (at: THREE.Vector3, axis: 'x' | 'y' | 'z', sign: 1 | -1, r = 2.6, h = 2.2): void => {
+    const head = new THREE.CylinderGeometry(r, r, h, 6);
+    const wash = new THREE.CylinderGeometry(r * 1.4, r * 1.4, 0.7, 20);
+    head.translate(0, 0.7 + h / 2, 0);
+    wash.translate(0, 0.35, 0);
+    for (const gg of [head, wash]) {
+      if (axis === 'x') gg.rotateZ(sign > 0 ? -Math.PI / 2 : Math.PI / 2);
+      else if (axis === 'z') gg.rotateX(sign > 0 ? Math.PI / 2 : -Math.PI / 2);
+      else if (sign < 0) gg.rotateX(Math.PI);
+      gg.translate(at.x, at.y, at.z);
+    }
+    steel.push(head);
+    washers.push(wash);
+  };
+  const yRoof = top + 8; // top face of the cover
+
+  // Inspection lid: rubber gasket, ribbed cover, four bolts, and a vent plug in the middle.
+  const lx = -60;
+  const lz = 20;
+  const gasket = extrudeCentered(roundedRect(74, 54, 6), 1.2, { curveSegments: 6 });
+  gasket.rotateX(-Math.PI / 2);
+  gasket.translate(lx, yRoof + 0.6, lz);
+  rubber.push(gasket);
+  const lid = extrudeCentered(roundedRect(70, 50, 5), 4, { bevel: 0.8, curveSegments: 6 });
   lid.rotateX(-Math.PI / 2);
-  lid.translate(-60, top + 10.5, 20);
-  const breather = new THREE.CylinderGeometry(4.5, 5.5, 9, 6);
-  breather.translate(-60, top + 17, 20);
-  const eyes: THREE.BufferGeometry[] = [];
-  for (const x of [xL + 18, xR - 18]) {
-    const e = new THREE.TorusGeometry(7, 2.2, 10, 24);
-    e.translate(x, top + 15, (zB + zF) / 2);
-    eyes.push(e);
+  lid.translate(lx, yRoof + 3.2, lz);
+  painted.push(lid);
+  for (const dz of [-12, 12]) {
+    const rib = new THREE.BoxGeometry(46, 2.2, 2.4);
+    rib.translate(lx, yRoof + 6.3, lz + dz);
+    painted.push(rib);
   }
-  const lidBolts: THREE.BufferGeometry[] = [];
   for (const [dx, dz] of [
     [-29, -19],
     [29, -19],
     [-29, 19],
     [29, 19],
-  ]) {
-    const b = new THREE.CylinderGeometry(2.4, 2.4, 2.2, 6);
-    b.translate(-60 + dx, top + 14, 20 + dz);
-    lidBolts.push(b);
+  ]) bolt(new THREE.Vector3(lx + dx, yRoof + 5.2, lz + dz), 'y', 1);
+  const ventHex = new THREE.CylinderGeometry(5.5, 5.5, 3.5, 6);
+  ventHex.translate(lx, yRoof + 7, lz);
+  const ventNeck = new THREE.CylinderGeometry(3, 3, 3, 16);
+  ventNeck.translate(lx, yRoof + 10.2, lz);
+  const ventDome = new THREE.SphereGeometry(6.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  ventDome.translate(lx, yRoof + 11.5, lz);
+  const ventRim = new THREE.TorusGeometry(6.5, 0.7, 8, 32);
+  ventRim.rotateX(Math.PI / 2);
+  ventRim.translate(lx, yRoof + 11.5, lz);
+  brassParts.push(ventHex, ventDome, ventRim);
+  steel.push(ventNeck);
+
+  // Lifting eye bolts (DIN 580): cast pad, collar, neck and a forged ring standing up.
+  for (const x of [xL + 24, xR - 24]) {
+    const z = (zB + zF) / 2;
+    const pad = new THREE.CylinderGeometry(11, 12, 3, 32);
+    pad.translate(x, yRoof + 1.5, z);
+    painted.push(pad);
+    const collar = new THREE.CylinderGeometry(8, 8.5, 3, 32);
+    collar.translate(x, yRoof + 4.5, z);
+    const neck = new THREE.CylinderGeometry(4.2, 5, 4, 16);
+    neck.translate(x, yRoof + 8, z);
+    const ring = new THREE.TorusGeometry(8, 2.7, 14, 40);
+    ring.translate(x, yRoof + 9.5 + 8 + 1.2, z);
+    steel.push(collar, neck, ring);
   }
 
-  // Flange bolts along the split (heads on the cover flange), away from the bosses.
-  const flangeBolts: THREE.BufferGeometry[] = [];
-  const fb = (x: number, z: number): void => {
-    const b = new THREE.CylinderGeometry(3.4, 3.4, 3, 6);
-    b.translate(x, split + 8.5, z);
-    flangeBolts.push(b);
-  };
+  // Flange bolts along the split (heads on the cover flange, with washers), away from the bosses.
+  const fb = (x: number, z: number): void => bolt(new THREE.Vector3(x, split + 7, z), 'y', 1, 3.2, 2.8);
   for (const x of [-105, -60, -15, 30]) {
     fb(x, zB - 4.5);
     fb(x, zF + 4.5);
@@ -297,27 +343,79 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
   for (const z of [-50, 35, 100]) fb(xR + 4.5, z);
   for (const z of [-50, 103]) fb(xL - 4.5, z);
 
-  // Base plate with feet and foundation bolts; an oil drain plug low on the right wall.
+  // Base plate with feet: studs, washers and nuts.
   const base = extrudeCentered(roundedRect(xR - xL + 44, zF - zB + 24, 10), BASE_T, { bevel: 1.2, curveSegments: 8 });
   base.rotateX(-Math.PI / 2);
   base.translate((xL + xR) / 2, BASE_T / 2, (zB + zF) / 2);
   lower.push(base);
-  const feetBolts: THREE.BufferGeometry[] = [];
   for (const x of [xL - 12, xR + 12]) {
     for (const z of [zB + 14, zF - 14]) {
-      const b = new THREE.CylinderGeometry(5, 5, 5, 6);
-      b.translate(x, BASE_T + 2.5, z);
-      feetBolts.push(b);
+      bolt(new THREE.Vector3(x, BASE_T, z), 'y', 1, 5, 4.2);
+      const stud = new THREE.CylinderGeometry(2.6, 2.6, 5, 12);
+      stud.translate(x, BASE_T + 7.5, z);
+      steel.push(stud);
     }
   }
-  const plug = new THREE.CylinderGeometry(5, 5, 6, 6);
-  plug.rotateZ(Math.PI / 2);
-  plug.translate(xR + 3, BASE_T + 14, 40);
+
+  // Oil drain plug low on the right wall, with a copper sealing ring.
+  const drainRing = new THREE.CylinderGeometry(7.5, 7.5, 1.2, 24);
+  drainRing.rotateZ(-Math.PI / 2);
+  drainRing.translate(xR + 0.6, BASE_T + 14, 40);
+  copper.push(drainRing);
+  const drain = new THREE.CylinderGeometry(5.5, 5.5, 4.5, 6);
+  drain.rotateZ(-Math.PI / 2);
+  drain.translate(xR + 3.4, BASE_T + 14, 40);
+  steel.push(drain);
+
+  // Oil sight glass in the front wall: a chrome ring with three screws around the level glass.
+  const sgX = 44;
+  const sgY = 36;
+  const sgRing = new THREE.Shape();
+  sgRing.absarc(0, 0, 12, 0, Math.PI * 2, false);
+  sgRing.holes.push(circlePath(8.2));
+  const sgGeo = extrudeCentered(sgRing, 3, { bevel: 0.6, curveSegments: 40 });
+  sgGeo.translate(sgX, sgY, zF + 1.5);
+  steel.push(sgGeo);
+  for (let i = 0; i < 3; i++) {
+    const a = Math.PI / 2 + (i * 2 * Math.PI) / 3;
+    const sc = new THREE.CylinderGeometry(1.3, 1.3, 1, 12);
+    sc.rotateX(Math.PI / 2);
+    sc.translate(sgX + 10 * Math.cos(a), sgY + 10 * Math.sin(a), zF + 3.4);
+    washers.push(sc);
+  }
 
   g.add(new THREE.Mesh(merge(lower), paint));
   g.add(new THREE.Mesh(merge(upper), acrylic));
-  g.add(new THREE.Mesh(merge([...caps, lid]), capPaint));
-  g.add(new THREE.Mesh(merge([...capBolts, ...lidBolts, ...flangeBolts, ...feetBolts, plug, breather, ...eyes]), steelBolt));
+  g.add(new THREE.Mesh(merge([...caps, ...painted]), capPaint));
+  g.add(new THREE.Mesh(merge([...capBolts, ...steel]), steelBolt));
+  g.add(new THREE.Mesh(merge(washers), kit.chrome()));
+  g.add(new THREE.Mesh(merge(brassParts), kit.paint('#c8a04a', 0.85, 0.28)));
+  g.add(new THREE.Mesh(merge(rubber), kit.paint('#1f2328', 0, 0.9)));
+  g.add(new THREE.Mesh(merge(copper), kit.paint('#b87333', 0.9, 0.3)));
+
+  // Markings: nameplate, cast lettering, rotation arrows on the shaft ends, warning sticker, sight glass.
+  const decals = [
+    decal(
+      nameplateTexture('ENGINEERING LAB', [
+        ['TYPE', 'HB 2-70 / i = 6'],
+        ['n1 / n2', '1500 / 250 min-1'],
+        ['P / M2 max', '1,1 kW / 40 N·m'],
+        ['OIL', 'ISO VG 220 · 0,6 l'],
+        ['S/N', 'EL-2026-0001'],
+      ]),
+      66,
+      39.6,
+      { x: -84, y: 42, z: zF },
+      { x: 0, y: 0, z: 1 },
+      { metal: true },
+    ),
+    decal(castLettering('ENGINEERING LAB'), 150, 18.75, { x: xR, y: 46, z: (zB + zF) / 2 }, { x: 1, y: 0, z: 0 }),
+    decal(rotationSticker(false, 'OUT'), 30, 30, { x: 0, y: AXIS_Y, z: zF + 18 }, { x: 0, y: 0, z: 1 }),
+    decal(rotationSticker(false, 'IN'), 28, 28, { x: xL - 18, y: AXIS_Y, z: S1_Z }, { x: -1, y: 0, z: 0 }),
+    decal(warningSticker('HOT'), 16, 18.75, { x: xL, y: 32, z: 35 }, { x: -1, y: 0, z: 0 }),
+    decal(sightGlassTexture(), 16.4, 16.4, { x: sgX, y: sgY, z: zF + 0.6 }, { x: 0, y: 0, z: 1 }),
+  ];
+  for (const d of decals) if (d) g.add(d);
   return g;
 }
 

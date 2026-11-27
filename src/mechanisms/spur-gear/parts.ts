@@ -15,6 +15,7 @@ import {
   shapeFromPoints,
   steppedShaft,
 } from '../../three/geom';
+import { castLettering, decal, nameplateTexture } from '../../three/decals';
 import type { Layout } from './layout';
 import {
   ALPHA,
@@ -190,6 +191,26 @@ function baseGroup(
   }
   const boltMesh = new THREE.Mesh(merge(bolts), kit.darkSteel());
   g.add(boltMesh);
+  // Markings: an aluminium nameplate on the plate in front of the supports, cast lettering on its front edge.
+  const { m, z1, z2 } = L.cfg;
+  const plateFront = 75 + 0.8;
+  for (const d of [
+    decal(
+      nameplateTexture('ENGINEERING LAB', [
+        ['TYPE', `SG-${Math.round(A)} / m = ${m}`],
+        ['z1 / z2', `${z1} / ${z2}`],
+        ['i', (z2 / z1).toFixed(2).replace('.', ',')],
+        ['a', `${A.toFixed(1).replace('.', ',')} mm`],
+        ['S/N', 'EL-2026-0002'],
+      ]),
+      60,
+      36,
+      { x: A / 2, y: 0, z: 50 },
+      { x: 0, y: 1, z: 0 },
+      { metal: true },
+    ),
+    decal(castLettering('ENGINEERING LAB'), 64, 8, { x: -left + plateW / 2, y: -4, z: plateFront }, { x: 0, y: 0, z: 1 }),
+  ]) if (d) g.add(d);
   return g;
 }
 
