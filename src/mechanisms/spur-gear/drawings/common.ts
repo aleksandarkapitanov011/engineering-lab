@@ -1,6 +1,6 @@
 /** Shared helpers for the spur gear drawings (sheet mm, scale 2:1 unless stated). */
 import type { DrawingNote } from '../../../core/types';
-import { dim, f, line, note, roughness, text } from '../../../ui/svgdraw';
+import { dim, f, line, note, roughness, text, ts, wrapText } from '../../../ui/svgdraw';
 
 export const S = 2; // drawing scale 2:1
 export const n = (bg: string): { bg: string } => ({ bg });
@@ -31,13 +31,18 @@ export function diaInside(x: number, yc: number, r: number, label: string, o: Pa
   return dim(x, yc + r, x, yc - r, 0, label, o);
 }
 
-export function notesBlock(x: number, y: number, title: string, rows: { t: string; key?: string }[]): string {
+export function notesBlock(x: number, y: number, title: string, rows: { t: string; key?: string }[], width = 200): string {
   let s = text(x, y, title, { anchor: 'start', size: 3.4, cls: 'label' });
-  rows.forEach((r, i) => {
-    const yy = y + 6 + i * 5.2;
-    const el = text(x, yy, r.t, { anchor: 'start', size: 3.1 });
-    s += r.key ? note(r.key, el, { x: x - 1, y: yy - 4, w: r.t.length * 1.75 + 2, h: 5.4 }) : el;
-  });
+  // Long lines wrap (the text is larger than on a printed sheet).
+  const lh = ts(3.1) * 1.3;
+  let yy = y + ts(3.4) + 2;
+  for (const r of rows) {
+    const lines = wrapText(r.t, 3.1, width);
+    const y0 = yy;
+    const el = lines.map((ln, k) => text(x + (k ? 4 : 0), yy + k * lh, ln, { anchor: 'start', size: 3.1 })).join('');
+    s += r.key ? note(r.key, el, { x: x - 1, y: y0 - ts(3.1), w: width + 2, h: lines.length * lh + 1.5 }) : el;
+    yy += lines.length * lh + 0.6;
+  }
   return s;
 }
 

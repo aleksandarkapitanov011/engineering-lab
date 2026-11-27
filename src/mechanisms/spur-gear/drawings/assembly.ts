@@ -3,7 +3,7 @@
  * position balloons, parts list, main fits and a kinematic diagram.
  */
 import type { DrawingNote } from '../../../core/types';
-import { arrowHead, circle, f, leader, line, note, path, polyline, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
+import { circle, f, leader, line, note, path, polyline, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
 import { N, notesBlock, vd } from './common';
 import {
   A,
@@ -28,6 +28,7 @@ import {
   WALL_T,
 } from '../params';
 import { GEAR2_BODY } from './gear2';
+import { bearing as kinBearing, coupling, gearRect, KIN, motor, shaftLine, shaftNo } from '../../../ui/kinematic';
 import { shaftNotes } from './shaft1';
 
 interface BomRow {
@@ -133,9 +134,9 @@ export function assemblySvg(): string {
 
   let s = sheetStart();
   s += `<defs><pattern id="hatch2" patternUnits="userSpaceOnUse" width="2.4" height="2.4" patternTransform="rotate(-45)">
-    <line x1="0" y1="0" x2="0" y2="2.4" stroke="#1d232b" stroke-width="0.22"/></pattern>
+    <rect width="2.4" height="2.4" fill="#f3e4cf"/><line x1="0" y1="0" x2="0" y2="2.4" stroke="#1d232b" stroke-width="0.22"/></pattern>
     <pattern id="hatch3" patternUnits="userSpaceOnUse" width="1.5" height="1.5" patternTransform="rotate(45)">
-    <line x1="0" y1="0" x2="0" y2="1.5" stroke="#1d232b" stroke-width="0.18"/></pattern></defs>
+    <rect width="1.5" height="1.5" fill="#e4e7ea"/><line x1="0" y1="0" x2="0" y2="1.5" stroke="#1d232b" stroke-width="0.18"/></pattern></defs>
     <style>.tdraw .hatch2{fill:url(#hatch2);stroke:none}.tdraw .hatch3{fill:url(#hatch3);stroke:none}</style>`;
 
   let v = '';
@@ -309,35 +310,27 @@ export function assemblySvg(): string {
   s += balloon(8, -3, A + 12, X(0), bot);
   s += balloon(6, -5, A + 36, X(-22), bot);
 
-  // Kinematic diagram (ISO 3952, schematic, not to scale).
+  // Kinematic diagram (ISO 3952, schematic, not to scale): motor, coupling, two shafts on bearings, the gear
+  // pair (× = keyed to the shaft), coupling to the driven machine.
   {
-    const kx = 252;
+    const kx = 250;
     const ky = 30;
-    let k = text(kx + 70, ky - 8, 'КИНЕМАТИЧНА СХЕМА', { size: 3.2, cls: 'label' });
+    let k = text(kx + 76, ky - 8, 'КИНЕМАТИЧНА СХЕМА', { size: 3.2, cls: 'label' });
+    const xg = kx + 66;
     const y1 = ky + 12;
-    const y2 = ky + 42;
-    k += line(kx, y1, kx + 92, y1) + line(kx + 40, y2, kx + 140, y2);
-    k += `<rect class="thick" x="${kx + 64}" y="${y1 - 10}" width="5" height="20" style="fill:${PAPER}"/>`;
-    k += `<rect class="thick" x="${kx + 64}" y="${y1 + 10}" width="5" height="40" style="fill:${PAPER}"/>`;
-    k += line(kx + 60, y1 + 10, kx + 73, y1 + 10, 'thin');
-    // × = gear fixed to its shaft (keyed).
-    for (const yy of [y1, y2]) k += line(kx + 64.6, yy - 2, kx + 68.4, yy + 2, 'thin') + line(kx + 64.6, yy + 2, kx + 68.4, yy - 2, 'thin');
-    const support = (x: number, y: number): string => {
-      let o = `<rect class="thick" x="${x - 3}" y="${y - 3}" width="6" height="6" style="fill:${PAPER}"/>`;
-      o += line(x, y + 3, x, y + 9, 'thin') + line(x - 5, y + 9, x + 5, y + 9);
-      for (let i = 0; i < 4; i++) o += line(x - 4 + i * 2.6, y + 9, x - 6 + i * 2.6, y + 11.5, 'thin');
-      return o;
-    };
-    k += support(kx + 50, y1) + support(kx + 84, y1) + support(kx + 50, y2) + support(kx + 84, y2);
-    k += line(kx - 2, y1, kx + 10, y1, 'thin') + arrowHead(kx + 10, y1, 0, 2.6);
-    k += text(kx + 4, y1 - 3, 'n₁', { size: 3.2 });
-    k += line(kx + 128, y2, kx + 142, y2, 'thin') + arrowHead(kx + 142, y2, 0, 2.6);
-    k += text(kx + 136, y2 - 3, 'n₂', { size: 3.2 });
-    k += text(kx + 61, y1 - 6, 'z₁ = 20', { anchor: 'end', size: 3 });
-    k += text(kx + 61, y2 + 19, 'z₂ = 40', { anchor: 'end', size: 3 });
-    k += text(kx + 75, y1 + 12, 'P', { anchor: 'start', size: 3 });
-    k += text(kx + 100, y1 + 4, 'i = z₂/z₁ = 2', { anchor: 'start', size: 3 });
-    s += note('kin', k, { x: kx - 4, y: ky - 14, w: 150, h: 72 });
+    const y2 = y1 + 9 + 23;
+    k += motor(kx + 6, y1, 7) + shaftLine(kx + 13, y1, kx + 17, y1) + coupling(kx + 19, y1) + shaftLine(kx + 21, y1, kx + 98, y1);
+    k += shaftLine(kx + 36, y2, kx + 116, y2) + coupling(kx + 118, y2) + shaftLine(kx + 120, y2, kx + 124, y2);
+    k += `<rect class="thick" x="${kx + 124}" y="${y2 - 7}" width="28" height="14" rx="1.5" style="fill:${KIN.MACHINE}"/>`;
+    k += text(kx + 138, y2 + 1.2, 'машина', { size: 2.4 });
+    k += gearRect(xg, y1, 9, 0, true) + gearRect(xg, y2, 23, 0, true);
+    k += kinBearing(kx + 44, y1) + kinBearing(kx + 88, y1) + kinBearing(kx + 44, y2) + kinBearing(kx + 88, y2);
+    k += shaftNo(kx + 104, y1 - 8, 'I') + shaftNo(kx + 104, y2 - 10, 'II');
+    k += text(xg - 7, y1 - 11, 'z₁ = 20', { anchor: 'end', size: 3 });
+    k += text(xg - 7, y2 + 21, 'z₂ = 40', { anchor: 'end', size: 3 });
+    k += text(xg + 7, y1 + 11.5, 'P', { anchor: 'start', size: 3 });
+    k += text(kx + 96, y2 + 21, 'i = z₂/z₁ = 2', { anchor: 'start', size: 3 });
+    s += note('kin', k, { x: kx - 4, y: ky - 14, w: 156, h: 92 });
   }
 
   // Parts list (above the title block, numbered from the bottom up as on a real drawing).

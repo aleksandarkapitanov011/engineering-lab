@@ -4,7 +4,7 @@
  */
 import type { DrawingNote, LText } from '../../../core/types';
 import { lt } from '../../../i18n';
-import { arrowHead, dim, f, leader, line, note, path, polyline, roughness, text, type TextOpts } from '../../../ui/svgdraw';
+import { arrowHead, dim, f, fitSize, leader, line, note, path, polyline, roughness, text, ts, wrapText, type TextOpts } from '../../../ui/svgdraw';
 
 export const L = (bg: string, en: string): LText => ({ bg, en });
 export const N = (title: LText, body: LText): DrawingNote => ({ title, body });
@@ -220,14 +220,20 @@ export type Row = [LText | string, string, string, string?];
 export function dataTable(x: number, y: number, title: LText, rows: Row[], cw: [number, number, number] = [52, 14, 34]): string {
   const rh = 6.2;
   const tw = cw[0] + cw[1] + cw[2];
-  let s = `<rect class="thick" x="${f(x)}" y="${f(y)}" width="${f(tw)}" height="${f(rh * (rows.length + 1))}"/>`;
-  s += text(x + tw / 2, y + 4.4, lt(title), { size: 3, cls: 'label' });
+  let s = `<rect class="tbl-head" x="${f(x)}" y="${f(y)}" width="${f(tw)}" height="${f(rh)}"/>`;
+  s += `<rect class="thick" x="${f(x)}" y="${f(y)}" width="${f(tw)}" height="${f(rh * (rows.length + 1))}"/>`;
+  const tl = lt(title);
+  s += text(x + tw / 2, y + 4.6, tl, { size: fitSize(tl, 3, tw - 3), cls: 'label' });
+  // Every cell fitted to its column (the text is larger than on a printed sheet).
+  const cell = (s0: string, size: number, w: number): number => fitSize(s0, size, w - 2.5);
   rows.forEach((row, i) => {
     const yy = y + rh * (i + 1);
-    let r = line(x, yy, x + tw, yy, 'thin');
-    r += text(x + 1.5, yy + 4.4, typeof row[0] === 'string' ? row[0] : lt(row[0]), { anchor: 'start', size: 2.6 });
-    r += text(x + cw[0] + cw[1] / 2, yy + 4.4, row[1], { size: 2.8 });
-    r += text(x + cw[0] + cw[1] + 1.5, yy + 4.4, row[2], { anchor: 'start', size: 2.6 });
+    const name = typeof row[0] === 'string' ? row[0] : lt(row[0]);
+    let r = i % 2 ? `<rect class="tbl-band" x="${f(x)}" y="${f(yy)}" width="${f(tw)}" height="${f(rh)}"/>` : '';
+    r += line(x, yy, x + tw, yy, 'thin');
+    r += text(x + 1.2, yy + 4.6, name, { anchor: 'start', size: cell(name, 2.6, cw[0]) });
+    r += text(x + cw[0] + cw[1] / 2, yy + 4.6, row[1], { size: cell(row[1], 2.8, cw[1]) });
+    r += text(x + cw[0] + cw[1] + 1.2, yy + 4.6, row[2], { anchor: 'start', size: cell(row[2], 2.6, cw[2]) });
     s += row[3] ? note(row[3], r, { x, y: yy, w: tw, h: rh }) : r;
   });
   s += line(x + cw[0], y + rh, x + cw[0], y + rh * (rows.length + 1), 'thin');
@@ -236,15 +242,25 @@ export function dataTable(x: number, y: number, title: LText, rows: Row[], cw: [
 }
 
 /** Numbered list of technical requirements (each line tappable). */
-export function requirements(x: number, y: number, rows: { t: LText; key?: string }[]): string {
+export function requirements(x: number, y: number, rows: { t: LText; key?: string }[], width = 200): string {
   let s = text(x, y, lt(L('ТЕХНИЧЕСКИ ИЗИСКВАНИЯ', 'TECHNICAL REQUIREMENTS')), { anchor: 'start', size: 3.4, cls: 'label' });
+  // Long requirements wrap onto more lines (indented under their number).
+  const lh = ts(3.1) * 1.3;
+  let yy = y + ts(3.4) + 2;
   rows.forEach((r, i) => {
-    const yy = y + 6 + i * 5.2;
-    const t = `${i + 1}. ${lt(r.t)}`;
-    const el = text(x, yy, t, { anchor: 'start', size: 3.1 });
-    s += r.key ? note(r.key, el, { x: x - 1, y: yy - 4, w: t.length * 1.75 + 2, h: 5.4 }) : el;
+    const lines = wrapText(`${i + 1}. ${lt(r.t)}`, 3.1, width);
+    const y0 = yy;
+    const el = lines.map((ln, k) => text(x + (k ? 4 : 0), yy + k * lh, ln, { anchor: 'start', size: 3.1 })).join('');
+    s += r.key ? note(r.key, el, { x: x - 1, y: y0 - ts(3.1), w: width + 2, h: lines.length * lh + 1.5 }) : el;
+    yy += lines.length * lh + 0.6;
   });
   return s;
+}
+
+/** Height of the requirements block (to place it above the bottom of the frame). */
+export function requirementsHeight(rows: { t: LText }[], width = 200): number {
+  const lh = ts(3.1) * 1.3;
+  return ts(3.4) + 2 + rows.reduce((a, r, i) => a + wrapText(`${i + 1}. ${lt(r.t)}`, 3.1, width).length * lh + 0.6, 0);
 }
 
 /** General roughness symbol “Ra … (√)” near the title block. */

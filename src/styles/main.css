@@ -1297,7 +1297,7 @@ input[type='range'] {
 
 .tdraw .thick {
   stroke: var(--ink);
-  stroke-width: 0.6;
+  stroke-width: 0.7;
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1305,13 +1305,13 @@ input[type='range'] {
 
 .tdraw .thin {
   stroke: var(--ink);
-  stroke-width: 0.25;
+  stroke-width: 0.3;
   fill: none;
 }
 
 .tdraw .center {
   stroke: #33618f;
-  stroke-width: 0.25;
+  stroke-width: 0.3;
   fill: none;
   stroke-dasharray: 8 1.5 1 1.5;
 }
@@ -1331,6 +1331,48 @@ input[type='range'] {
 .tdraw text {
   fill: var(--ink);
   font-size: 3.5px;
+}
+
+.tdraw .dim .thin {
+  stroke: #24497a;
+}
+
+.tdraw .dim text {
+  fill: #1d3d68;
+}
+
+.tdraw .dim .arrow {
+  fill: #24497a;
+}
+
+.tdraw .frame {
+  stroke-width: 0.9;
+}
+
+.tdraw .zone {
+  font-size: 4px;
+  font-style: normal;
+  fill: #8b8f96;
+}
+
+.tdraw .tb-fill {
+  fill: #ffffff;
+}
+
+.tdraw .tb-head {
+  fill: #eef2f6;
+}
+
+.tdraw .tb-label {
+  fill: #5f6b78;
+}
+
+.tdraw .tbl-head {
+  fill: #e6edf4;
+}
+
+.tdraw .tbl-band {
+  fill: rgba(51, 97, 143, 0.05);
 }
 
 .tdraw .small {

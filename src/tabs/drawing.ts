@@ -35,8 +35,22 @@ function createDrawingTab(mech: Mechanism): TabView {
   const rendered = new Map<number, string>();
   let activeNote: Element | null = null;
 
+  // The SVG is laid out at `drawn` × its natural size; during a gesture it is only stretched (fast), and
+  // when the gesture ends it is laid out again at the new zoom, so lines and text stay sharp at any zoom.
+  let drawn = 1;
+  let sharpen = 0;
   const apply = (): void => {
-    paper.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    paper.style.transform = `translate(${tx}px, ${ty}px) scale(${scale / drawn})`;
+    window.clearTimeout(sharpen);
+    sharpen = window.setTimeout(commit, 180);
+  };
+  const commit = (): void => {
+    const svg = paper.querySelector('svg');
+    if (!svg || pts.size > 0 || Math.abs(scale - drawn) < 1e-3) return;
+    drawn = scale;
+    svg.setAttribute('width', String(Math.round(svgW * scale)));
+    svg.setAttribute('height', String(Math.round(svgH * scale)));
+    paper.style.transform = `translate(${tx}px, ${ty}px)`;
   };
 
   const fitScale = (): number => {
@@ -52,9 +66,23 @@ function createDrawingTab(mech: Mechanism): TabView {
     apply();
   };
 
+  /**
+   * First view of a sheet: on a portrait screen (phone) the whole A3 sheet would be tiny, so it opens fitted
+   * to the height, from its left edge (swipe across; the button shows the whole sheet). Otherwise: all of it.
+   */
+  const initialView = (): void => {
+    const r = stage.getBoundingClientRect();
+    if (r.height > r.width * 1.15) {
+      scale = Math.min((r.height / svgH) * 0.97, fitScale() * 2.6);
+      tx = 6;
+      ty = (r.height - svgH * scale) / 2;
+      apply();
+    } else fit();
+  };
+
   const zoomAt = (cx: number, cy: number, factor: number): void => {
     const min = fitScale() * 0.7;
-    const max = 3.5;
+    const max = 6;
     const ns = Math.min(max, Math.max(min, scale * factor));
     const k = ns / scale;
     tx = cx - (cx - tx) * k;
@@ -71,9 +99,10 @@ function createDrawingTab(mech: Mechanism): TabView {
     const svg = paper.querySelector('svg')!;
     svgW = Number(svg.getAttribute('width'));
     svgH = Number(svg.getAttribute('height'));
+    drawn = 1;
     activeNote = null;
     sheet.close();
-    fit();
+    initialView();
   }
 
   const openNote = (g: Element): void => {
@@ -159,6 +188,7 @@ function createDrawingTab(mech: Mechanism): TabView {
     pts.delete(e.pointerId);
     if (pts.size > 0) return;
     paper.style.willChange = '';
+    apply(); // sharpen at the final zoom
     const g = gesture;
     gesture = null;
     if (!g || g.multi || g.moved > TAP_SLOP || e.type === 'pointercancel') return;
@@ -188,14 +218,14 @@ function createDrawingTab(mech: Mechanism): TabView {
   );
 
   const ro = new ResizeObserver(() => {
-    if (!el.hidden) fit();
+    if (!el.hidden) initialView();
   });
 
   return {
     el,
     activate() {
       if (!paper.firstChild) show(0);
-      else fit();
+      else initialView();
       ro.observe(stage);
     },
     deactivate() {

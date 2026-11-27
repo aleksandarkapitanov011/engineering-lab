@@ -216,6 +216,7 @@
  "Изходящият вал, по-дебел заради двойно по-големия момент. Брой: {0}. Чертеж: EL-SG-{1}.": "The output shaft, thicker because of the twice larger torque. Quantity: {0}. Drawing: EL-SG-{1}.",
  "Итерации на решателя (CG) z₁ / z₂": "Solver iterations (CG) z₁ / z₂",
  "КИНЕМАТИЧНА СХЕМА": "KINEMATIC DIAGRAM",
+ "машина": "machine",
  "Как да се поправи: по-голям модул или ширина b, по-твърд материал, по-малка мощност или по-високи обороти при същата мощност.": "How to fix it: a larger module or face width b, a harder material, less power, or a higher speed for the same power.",
  "Какво е зъбна предавка": "What a gear pair is",
  "Какво става, ако междуосието е малко по-голямо от a = m(z₁ + z₂)/{0}?": "What happens if the centre distance is slightly larger than a = m(z₁ + z₂)/{0}?",
