@@ -83,6 +83,20 @@
   visibility: hidden;
 }
 
+/* No page turning: flat pages, only the current one shown (reliable touch scrolling on phones). */
+.nb-book.at-rest {
+  perspective: none;
+}
+
+.nb-book.at-rest .nb-leaf {
+  transform: none !important;
+  transform-style: flat;
+}
+
+.nb-book.at-rest .nb-leaf:not(.current) {
+  visibility: hidden;
+}
+
 .nb-leaf.turning {
   will-change: transform;
 }

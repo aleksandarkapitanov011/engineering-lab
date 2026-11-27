@@ -312,6 +312,7 @@ function createTheoryTab(mech: Mechanism): TabView {
       leaf.el.style.zIndex = String(leaves.length - j);
       leaf.el.classList.toggle('gone', j < cur);
       leaf.el.classList.remove('turning');
+      leaf.el.classList.toggle('current', j === cur);
       leaf.el.setAttribute('aria-hidden', String(j !== cur));
       leaf.under.style.opacity = '0';
       setAngle(leaf, j < cur ? -180 : 0);
@@ -321,6 +322,8 @@ function createTheoryTab(mech: Mechanism): TabView {
     prevBtn.disabled = cur === 0;
     nextBtn.disabled = cur === leaves.length - 1;
     book.classList.toggle('closed', cur === 0);
+    // At rest the pages are flat (no 3D): touch scrolling over 3D-transformed layers is unreliable on phones.
+    book.classList.add('at-rest');
   };
 
   const ensureIllus = (leafIndex: number): IllustrationHandle | null => {
@@ -330,6 +333,8 @@ function createTheoryTab(mech: Mechanism): TabView {
     if (!handles[ti]) {
       handles[ti] = pages[ti].illustration(leaf.illusHost!);
       requestAnimationFrame(() => leaf.paper && snapToLines(leaf.paper));
+      // The figure grows the page once drawn: the phone layout must take the new height.
+      if (active) ro.observe(leaf.illusHost!);
     }
     return handles[ti];
   };
@@ -362,6 +367,7 @@ function createTheoryTab(mech: Mechanism): TabView {
     if (dir === -1 && cur <= 0) return null;
     const leaf = dir === 1 ? leaves[cur] : leaves[cur - 1];
     const under = dir === 1 ? leaves[cur + 1] : leaves[cur];
+    book.classList.remove('at-rest');
     leaf.el.classList.remove('gone');
     leaf.el.classList.add('turning');
     // Make sure the page revealed underneath is already drawn.
@@ -507,6 +513,7 @@ function createTheoryTab(mech: Mechanism): TabView {
     activate() {
       active = true;
       ro.observe(book);
+      for (const leaf of leaves) if (leaf.illusHost) ro.observe(leaf.illusHost);
       void document.fonts?.ready.then(snapAll);
       onSettled();
     },
