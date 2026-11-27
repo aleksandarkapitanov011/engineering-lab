@@ -431,12 +431,60 @@ function createTheoryTab(mech: Mechanism): TabView {
   });
 
   // Finger / mouse dragging.
-  let drag: { x: number; y: number; t: number; id: number; mode: 'none' | 'scroll' | 'turn'; turn: Turn | null; lastX: number; lastT: number; v: number } | null = null;
+  let drag: {
+    x: number;
+    y: number;
+    t: number;
+    id: number;
+    mode: 'none' | 'scroll' | 'turn';
+    turn: Turn | null;
+    lastX: number;
+    lastT: number;
+    v: number;
+    /** Phone, finger: the page is scrolled here (the browser's own touch scrolling is off on the book). */
+    own: boolean;
+    top0: number;
+    lastY: number;
+    lastYT: number;
+    vy: number;
+  } | null = null;
+  let glide = 0;
+  /** Inertia after a flick, like native scrolling. */
+  const glideFrom = (vy: number): void => {
+    cancelAnimationFrame(glide);
+    let v = vy;
+    let last = performance.now();
+    const step = (now: number): void => {
+      const dt = Math.min(40, now - last);
+      last = now;
+      desk.scrollTop -= v * dt;
+      v *= Math.pow(0.995, dt);
+      if (Math.abs(v) > 0.02) glide = requestAnimationFrame(step);
+    };
+    glide = requestAnimationFrame(step);
+  };
   book.addEventListener('pointerdown', (e) => {
     if (anim || (e.pointerType === 'mouse' && e.button !== 0)) return;
     // Mouse: prevent text selection / native drag so the page can be dragged like paper.
     if (e.pointerType === 'mouse' && !(e.target as Element).closest('button')) e.preventDefault();
-    drag = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, mode: 'none', turn: null, lastX: e.clientX, lastT: performance.now(), v: 0 };
+    cancelAnimationFrame(glide);
+    const now = performance.now();
+    drag = {
+      x: e.clientX,
+      y: e.clientY,
+      t: now,
+      id: e.pointerId,
+      mode: 'none',
+      turn: null,
+      lastX: e.clientX,
+      lastT: now,
+      v: 0,
+      own: e.pointerType !== 'mouse' && phone.matches,
+      top0: desk.scrollTop,
+      lastY: e.clientY,
+      lastYT: now,
+      vy: 0,
+    };
   });
   book.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id) return;
@@ -449,6 +497,16 @@ function createTheoryTab(mech: Mechanism): TabView {
         if (drag.turn) capturePointer(book, e.pointerId);
       } else if (Math.abs(dy) > 10) {
         drag.mode = 'scroll';
+        if (drag.own) capturePointer(book, e.pointerId);
+      }
+    }
+    if (drag.mode === 'scroll' && drag.own) {
+      desk.scrollTop = drag.top0 - dy;
+      const now = performance.now();
+      if (now - drag.lastYT > 12) {
+        drag.vy = 0.6 * ((e.clientY - drag.lastY) / (now - drag.lastYT)) + 0.4 * drag.vy;
+        drag.lastY = e.clientY;
+        drag.lastYT = now;
       }
     }
     if (drag.mode === 'turn' && drag.turn) {
@@ -467,6 +525,10 @@ function createTheoryTab(mech: Mechanism): TabView {
     if (!drag || e.pointerId !== drag.id) return;
     const d = drag;
     drag = null;
+    if (d.mode === 'scroll' && d.own) {
+      if (performance.now() - d.lastYT < 80 && Math.abs(d.vy) > 0.15) glideFrom(d.vy);
+      return;
+    }
     if (d.mode === 'turn' && d.turn) {
       const flick = d.turn.dir === 1 ? d.v < -0.45 : d.v > 0.45;
       finishTurn(d.turn, e.type !== 'pointercancel' && (d.turn.p > 0.33 || flick));

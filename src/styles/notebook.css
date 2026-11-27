@@ -1223,4 +1223,9 @@
   .nb-paper {
     overflow: hidden;
   }
+
+  /* A finger on the book is handled in theory.ts (scroll with inertia, or turn the page). */
+  .nb-book {
+    touch-action: none;
+  }
 }
