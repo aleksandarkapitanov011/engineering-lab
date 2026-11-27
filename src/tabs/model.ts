@@ -666,20 +666,70 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   // Callout labels: the name of every part with an arrow to it (option in the tools).
   const callouts = createCallouts((id) => select(id === selected ? null : id));
   let anchors: ReturnType<MechanismScene['visibleAnchors']> = [];
+  // Label groups, as with the forces: one per shaft (with everything on it), the fixed parts, all.
+  let labelGroup = '';
+  const labelGroups = (): { id: string; label: string; parts: string[] | null }[] => {
+    const out: { id: string; label: string; parts: string[] | null }[] = [];
+    for (const b of mech.kinematics.bodies) {
+      const ps = mech.parts.filter((p) => p.body === b.id).map((p) => p.id);
+      if (ps.length) out.push({ id: b.id, label: lt(b.label), parts: ps });
+    }
+    const fixed = mech.parts.filter((p) => !p.body);
+    if (fixed.length) out.push({ id: '_fixed', label: fixed.map((p) => lt(p.meta.label ?? p.meta.name)).join(' + '), parts: fixed.map((p) => p.id) });
+    out.push({ id: 'all', label: t('labelsAll'), parts: null });
+    return out;
+  };
+  const groupRow = h('div', { class: 'chip-row label-groups', role: 'group', hidden: true });
+  const currentGroup = () => {
+    const gs = labelGroups();
+    return gs.find((g) => g.id === labelGroup) ?? gs[0];
+  };
+  const renderGroups = (): void => {
+    const cur = currentGroup();
+    groupRow.replaceChildren(
+      ...labelGroups().map((g) =>
+        h(
+          'button',
+          {
+            class: 'chip',
+            'aria-pressed': String(g.id === cur.id),
+            onclick: () => {
+              labelGroup = g.id;
+              anchorsAt = 0;
+              renderGroups();
+            },
+          },
+          g.label,
+        ),
+      ),
+    );
+  };
+  const sameIds = (a: string[] | null, b: string[] | null): boolean => (a === null || b === null ? a === b : a.length === b.length && a.every((x) => b.includes(x)));
   let anchorsAt = 0;
   let anchorsFor: MechanismScene | null = null;
   const updateCallouts = (): void => {
     const s = scene;
     const v = viewer;
-    if (!labels || !s || !v || !(panel === 'none' || panel === 'part' || panel === 'lab')) {
+    const show = !!labels && !!s && !!v && (panel === 'none' || panel === 'part' || panel === 'lab');
+    groupRow.hidden = !show;
+    // The chosen group stays clear, the rest fades (not while a part is selected: that has its own look).
+    if (s && !selected && (panel === 'none' || panel === 'part' || panel === 'lab')) {
+      const want = show ? currentGroup().parts : null;
+      if (!sameIds(s.focused(), want)) {
+        s.focus(want);
+        v?.requestRender();
+      }
+    }
+    if (!show || !s || !v) {
       callouts.hide();
       return;
     }
+    const only = currentGroup().parts;
     const r = el.getBoundingClientRect();
     // Which parts can be seen (and where) is found a few times a second; the labels follow every frame.
     const now = performance.now();
     if (now - anchorsAt > 220 || anchorsFor !== s) {
-      anchors = s.visibleAnchors(v.renderer, v.camera);
+      anchors = s.visibleAnchors(v.renderer, v.camera, only);
       anchorsAt = now;
       anchorsFor = s;
     }
@@ -695,15 +745,16 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     const bottom = Math.min(r.height, covered) - 10;
     // Right column: at the screen edge under the tools when there is room (phone: one small button),
     // otherwise next to the tool column (wide screens: a tall rail of buttons).
+    const top = Math.max(60, groupRow.getBoundingClientRect().bottom - r.top + 8); // under the group chips
     const railBottom = rail.bottom - r.top + 8;
-    const edge = bottom - railBottom >= Math.ceil(items.length / 2) * 24;
+    const edge = rail.height < 120 && bottom - railBottom >= Math.ceil(items.length / 2) * 24;
     callouts.update(
       items,
-      { left: 8, right: edge ? r.width - 8 : Math.min(r.width, rail.left - r.left) - 8, top: 60, bottom, rightTop: edge ? railBottom : 60 },
+      { left: 8, right: edge ? r.width - 8 : Math.min(r.width, rail.left - r.left) - 8, top, bottom, rightTop: edge ? Math.max(top, railBottom) : top },
       selected,
     );
   };
-  el.append(callouts.el, h('div', { class: 'overlay-top' }, viewBtns), toolCol, hint, controlPanel);
+  el.append(callouts.el, h('div', { class: 'overlay-top' }, viewBtns, groupRow), toolCol, hint, controlPanel);
   el.appendChild(sheet.el); // keep the sheet on top of the panel
   // Collapsing the sheet hides the speed panel too and lets the model fill the freed space
   // (close-up views keep their zoom, the forces view keeps room for the arrows).
@@ -1039,6 +1090,8 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   labelsBtn.addEventListener('click', () => {
     labels = !labels;
     labelsBtn.setAttribute('aria-pressed', String(labels));
+    if (labels) renderGroups();
+    anchorsAt = 0;
     hint.hidden = labels;
     updateCallouts();
   });

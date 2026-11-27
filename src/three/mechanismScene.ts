@@ -379,6 +379,7 @@ export class MechanismScene {
   /** Keeps the given parts as they are and fades everything else (no emissive glow). */
   focus(ids: string[] | null): void {
     this.highlighted = null;
+    this.focusIds = ids ? [...ids] : null;
     for (const [pid, p] of this.parts) {
       const keep = ids === null || ids.includes(pid);
       for (const s of p.mats) {
@@ -394,6 +395,7 @@ export class MechanismScene {
 
   highlight(id: string | null): void {
     this.highlighted = id;
+    this.focusIds = null;
     for (const [pid, p] of this.parts) {
       for (const s of p.mats) {
         if (id === null) {
@@ -456,6 +458,13 @@ export class MechanismScene {
     return fallback;
   }
 
+  private focusIds: string[] | null = null;
+
+  /** The parts kept by the last focus() (null: none, or a highlight replaced it). */
+  focused(): string[] | null {
+    return this.focusIds;
+  }
+
   private idTarget: THREE.WebGLRenderTarget | null = null;
   private idMats: THREE.MeshBasicMaterial[] = [];
 
@@ -465,7 +474,7 @@ export class MechanismScene {
    * has its own flat colour; see-through surfaces (the clear cover) are left out of it, so what is behind
    * them counts as visible. Parts hidden inside the housing get no label.
    */
-  visibleAnchors(renderer: THREE.WebGLRenderer, camera: THREE.Camera, minPixels = 10): { id: string; local: THREE.Vector3 }[] {
+  visibleAnchors(renderer: THREE.WebGLRenderer, camera: THREE.Camera, only: string[] | null = null, minPixels = 4): { id: string; local: THREE.Vector3 }[] {
     const W = 200;
     const canvas = renderer.domElement;
     const H = Math.max(8, Math.round((W * canvas.height) / Math.max(1, canvas.width)));
@@ -482,8 +491,9 @@ export class MechanismScene {
       return !(st && st.transparent && st.opacity < 0.6);
     };
     const owner = new Map<THREE.Object3D, number>();
-    parts.forEach(([, p], i) => {
-      if (p.wrapper.visible) for (const m of p.meshes) if (solid(p, m)) owner.set(m, i);
+    // Parts outside `only` are left out (faded on screen), so they hide nothing.
+    parts.forEach(([id, p], i) => {
+      if (p.wrapper.visible && (!only || only.includes(id))) for (const m of p.meshes) if (solid(p, m)) owner.set(m, i);
     });
     const saved: [THREE.Object3D, boolean, THREE.Material | THREE.Material[] | undefined][] = [];
     this.root.traverse((o) => {
