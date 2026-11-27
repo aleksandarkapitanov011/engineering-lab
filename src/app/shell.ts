@@ -129,6 +129,7 @@ export class Shell {
       ),
       h('h2', { class: 'section-label' }, t('catalogue')),
       grid,
+      h('p', { class: 'app-version' }, `${t('version')} ${__APP_VERSION__}`),
     );
     this.root.replaceChildren(page);
   }

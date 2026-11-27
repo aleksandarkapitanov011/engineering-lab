@@ -665,6 +665,9 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   const hint = h('div', { class: 'tap-hint' }, t('tapHint'));
   // Callout labels: the name of every part with an arrow to it (option in the tools).
   const callouts = createCallouts((id) => select(id === selected ? null : id));
+  let anchors: ReturnType<MechanismScene['visibleAnchors']> = [];
+  let anchorsAt = 0;
+  let anchorsFor: MechanismScene | null = null;
   const updateCallouts = (): void => {
     const s = scene;
     const v = viewer;
@@ -673,10 +676,19 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       return;
     }
     const r = el.getBoundingClientRect();
-    const items = s.labelAnchors().map(({ id, at }) => {
+    // Which parts can be seen (and where) is found a few times a second; the labels follow every frame.
+    const now = performance.now();
+    if (now - anchorsAt > 220 || anchorsFor !== s) {
+      anchors = s.visibleAnchors(v.renderer, v.camera);
+      anchorsAt = now;
+      anchorsFor = s;
+    }
+    const items = anchors.flatMap(({ id, local }) => {
+      const at = s.anchorWorld(id, local);
+      const def = mech.parts.find((q) => q.id === id);
+      if (!at || !def) return [];
       const p = v.project(at);
-      const def = mech.parts.find((q) => q.id === id)!;
-      return { id, text: lt(def.meta.label ?? def.meta.name), x: p.x - r.left, y: p.y - r.top };
+      return [{ id, text: lt(def.meta.label ?? def.meta.name), x: p.x - r.left, y: p.y - r.top }];
     });
     const rail = toolCol.getBoundingClientRect();
     const covered = sheet.isOpen() ? sheet.el.getBoundingClientRect().top - r.top : r.height - controlPanel.offsetHeight;

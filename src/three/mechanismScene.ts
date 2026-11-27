@@ -456,18 +456,113 @@ export class MechanismScene {
     return fallback;
   }
 
-  /** Visible parts with a point to hang a callout label on (world, centre of the part's bounding box). */
-  labelAnchors(): { id: string; at: THREE.Vector3 }[] {
-    this.root.updateMatrixWorld(true);
-    const out: { id: string; at: THREE.Vector3 }[] = [];
-    const box = new THREE.Box3();
-    for (const [id, p] of this.parts) {
-      if (!p.wrapper.visible) continue;
-      box.makeEmpty();
-      for (const m of p.meshes) if (!m.userData.decal) box.expandByObject(m);
-      if (!box.isEmpty()) out.push({ id, at: box.getCenter(new THREE.Vector3()) });
+  private idTarget: THREE.WebGLRenderTarget | null = null;
+  private idMats: THREE.MeshBasicMaterial[] = [];
+
+  /**
+   * Parts that can really be seen from the camera, each with a point on its visible surface (in the part's
+   * own, non-spinning frame) to point a label at. Found with a small off-screen render in which every part
+   * has its own flat colour; see-through surfaces (the clear cover) are left out of it, so what is behind
+   * them counts as visible. Parts hidden inside the housing get no label.
+   */
+  visibleAnchors(renderer: THREE.WebGLRenderer, camera: THREE.Camera, minPixels = 10): { id: string; local: THREE.Vector3 }[] {
+    const W = 200;
+    const canvas = renderer.domElement;
+    const H = Math.max(8, Math.round((W * canvas.height) / Math.max(1, canvas.width)));
+    if (!this.idTarget) this.idTarget = new THREE.WebGLRenderTarget(W, H);
+    else if (this.idTarget.height !== H) this.idTarget.setSize(W, H);
+    const parts = [...this.parts.entries()];
+    // Flat-colour materials: red channel = index + 1.
+    while (this.idMats.length < parts.length) {
+      const i = this.idMats.length;
+      this.idMats.push(new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB((i + 1) / 255, 0, 0, THREE.LinearSRGBColorSpace), toneMapped: false }));
+    }
+    const solid = (p: PartInstance, m: THREE.Mesh): boolean => {
+      const st = p.mats.find((s) => s.mat === m.material);
+      return !(st && st.transparent && st.opacity < 0.6);
+    };
+    const owner = new Map<THREE.Object3D, number>();
+    parts.forEach(([, p], i) => {
+      if (p.wrapper.visible) for (const m of p.meshes) if (solid(p, m)) owner.set(m, i);
+    });
+    const saved: [THREE.Object3D, boolean, THREE.Material | THREE.Material[] | undefined][] = [];
+    this.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!(m.isMesh || (o as THREE.Line).isLine || (o as THREE.Points).isPoints || (o as THREE.Sprite).isSprite)) return;
+      const i = owner.get(o);
+      saved.push([o, o.visible, m.material]);
+      if (i === undefined) o.visible = false;
+      else m.material = this.idMats[i];
+    });
+    const prevTarget = renderer.getRenderTarget();
+    const prevColor = renderer.getClearColor(new THREE.Color());
+    const prevAlpha = renderer.getClearAlpha();
+    const prevShadow = renderer.shadowMap.autoUpdate;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(this.idTarget);
+    renderer.setClearColor(0x000000, 1);
+    renderer.clear();
+    renderer.render(this.root, camera);
+    const px = new Uint8Array(W * H * 4);
+    renderer.readRenderTargetPixels(this.idTarget, 0, 0, W, H, px);
+    renderer.setRenderTarget(prevTarget);
+    renderer.setClearColor(prevColor, prevAlpha);
+    renderer.shadowMap.autoUpdate = prevShadow;
+    for (const [o, vis, mat] of saved) {
+      o.visible = vis;
+      if (mat) (o as THREE.Mesh).material = mat;
+    }
+
+    // Pixels of each part: count and centroid, then the part's own pixel nearest to the centroid.
+    const n = parts.length;
+    const cnt = new Float64Array(n + 1);
+    const sx = new Float64Array(n + 1);
+    const sy = new Float64Array(n + 1);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const k = px[(y * W + x) * 4];
+        if (k > 0 && k <= n) {
+          cnt[k]++;
+          sx[k] += x;
+          sy[k] += y;
+        }
+      }
+    }
+    const best = new Float64Array(n + 1).fill(Infinity);
+    const bx = new Int32Array(n + 1);
+    const by = new Int32Array(n + 1);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const k = px[(y * W + x) * 4];
+        if (!(k > 0 && k <= n) || cnt[k] < minPixels) continue;
+        const d = (x - sx[k] / cnt[k]) ** 2 + (y - sy[k] / cnt[k]) ** 2;
+        if (d < best[k]) {
+          best[k] = d;
+          bx[k] = x;
+          by[k] = y;
+        }
+      }
+    }
+    // The world point under that pixel, kept in the part's frame so the label follows the part.
+    const out: { id: string; local: THREE.Vector3 }[] = [];
+    const rc = new THREE.Raycaster();
+    for (let k = 1; k <= n; k++) {
+      if (cnt[k] < minPixels) continue;
+      const [id, p] = parts[k - 1];
+      rc.setFromCamera(new THREE.Vector2(((bx[k] + 0.5) / W) * 2 - 1, ((by[k] + 0.5) / H) * 2 - 1), camera);
+      const hit = rc.intersectObjects(p.meshes.filter((m) => solid(p, m)), false)[0];
+      const world = hit ? hit.point : new THREE.Box3().setFromObject(p.content).getCenter(new THREE.Vector3());
+      out.push({ id, local: p.wrapper.worldToLocal(world.clone()) });
     }
     return out;
+  }
+
+  /** A point kept by visibleAnchors, back in world coordinates (where the part is now). */
+  anchorWorld(id: string, local: THREE.Vector3): THREE.Vector3 | null {
+    const p = this.parts.get(id);
+    if (!p || !p.wrapper.visible) return null;
+    p.wrapper.updateMatrixWorld();
+    return p.wrapper.localToWorld(local.clone());
   }
 
   /** Objects to raycast for picking (visible parts only). */
@@ -544,6 +639,8 @@ export class MechanismScene {
 
   dispose(): void {
     this.showGhost(null);
+    this.idTarget?.dispose();
+    this.idMats.forEach((m) => m.dispose());
     this.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;

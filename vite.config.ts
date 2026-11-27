@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { defineConfig, type Plugin } from 'vite';
 import { createHash } from 'node:crypto';
 import { readdirSync, statSync } from 'node:fs';
@@ -65,7 +66,8 @@ self.addEventListener('fetch', (e) => {
   if (req.mode === 'navigate') {
     // The page: network first (to get updates), the cached copy when offline.
     e.respondWith(
-      fetch(req)
+      // no-store: never the browser's HTTP cache (it may hold the old page for 10 minutes).
+      fetch(req.url, { cache: 'no-store', credentials: 'same-origin' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put('./', copy));
@@ -97,7 +99,20 @@ self.addEventListener('fetch', (e) => {
   };
 }
 
+/** Version shown in the app: the commit it was built from and the date (so a phone can tell if it is current). */
+function appVersion(): string {
+  let hash = 'dev';
+  try {
+    hash = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    /* not a git checkout */
+  }
+  const d = new Date();
+  return `${hash} · ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+}
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(appVersion()) },
   // Relative asset paths so the same build works inside the Capacitor WebView and under any sub-path.
   base: './',
   plugins: [serviceWorker()],
