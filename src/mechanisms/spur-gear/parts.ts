@@ -123,10 +123,11 @@ function baseGroup(
   const right = Math.max(45, L.g2.da / 2 + 12);
   // Plate (in XZ), top face at y = 0.
   const plateW = A + left + right;
-  const plateShape = roundedRect(plateW, 155, 8);
+  // Deeper at the front than the supports need: room for the nameplate in front of the pinion shaft end.
+  const plateShape = roundedRect(plateW, 175, 8);
   const plate = extrudeCentered(plateShape, 8, { bevel: 0.8, curveSegments: 6 });
   plate.rotateX(-Math.PI / 2);
-  plate.translate(-left + plateW / 2, -4, -2.5);
+  plate.translate(-left + plateW / 2, -4, 7.5);
   // Painted cast iron, like a finished machine (the gears stay open between the supports).
   const iron = kit.paint('#4f6878', 0.28, 0.58);
   const capPaint = kit.paint('#3e5463', 0.3, 0.5);
@@ -193,19 +194,20 @@ function baseGroup(
   g.add(boltMesh);
   // Markings: an aluminium nameplate on the plate in front of the supports, cast lettering on its front edge.
   const { m, z1, z2 } = L.cfg;
-  const plateFront = 75 + 0.8;
+  const plateFront = 95 + 0.8;
+  // Beside the output shaft (x = A, r = 12,5) so it is never hidden under it when seen from above.
+  const npW = 80;
+  const npX = Math.max(-left + npW / 2 + 6, Math.min(A / 2, A - 12.5 - 3 - npW / 2));
   for (const d of [
     decal(
       nameplateTexture('ENGINEERING LAB', [
-        ['TYPE', `SG-${Math.round(A)} / m = ${m}`],
-        ['z1 / z2', `${z1} / ${z2}`],
-        ['i', (z2 / z1).toFixed(2).replace('.', ',')],
-        ['a', `${A.toFixed(1).replace('.', ',')} mm`],
+        ['m  z1/z2', `${m}  ${z1}/${z2}`],
+        ['i  a', `${(z2 / z1).toFixed(2).replace('.', ',')}  ${Math.round(A)} mm`],
         ['S/N', 'EL-2026-0002'],
       ]),
-      60,
-      36,
-      { x: A / 2, y: 0, z: 50 },
+      npW,
+      48,
+      { x: npX, y: 0, z: 72 },
       { x: 0, y: 1, z: 0 },
       { metal: true },
     ),

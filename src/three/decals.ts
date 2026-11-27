@@ -16,7 +16,7 @@ export function canvasTexture(w: number, h: number, draw: (ctx: CanvasRenderingC
   draw(ctx, w, h);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 16;
   return tex;
 }
 
@@ -36,8 +36,8 @@ export function decal(
   const mat = new THREE.MeshStandardMaterial({
     map: tex,
     transparent: true,
-    metalness: o.metal ? 0.75 : 0.05,
-    roughness: o.roughness ?? (o.metal ? 0.38 : 0.55),
+    metalness: o.metal ? 0.35 : 0.05,
+    roughness: o.roughness ?? (o.metal ? 0.5 : 0.55),
     polygonOffset: true,
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
@@ -54,68 +54,95 @@ export function decal(
   return m;
 }
 
-/** Riveted aluminium nameplate: a header band with the brand, then rows of "key  value". */
+/**
+ * Riveted aluminium nameplate: a dark header band with the brand, then rows of "key  value".
+ * Drawn large and high-contrast (dark bold type on light metal) so it stays legible when small on screen.
+ */
 export function nameplateTexture(brand: string, rows: [string, string][], accent = '#ff7a1a'): THREE.Texture | null {
-  return canvasTexture(640, 384, (ctx, w, h) => {
-    // Brushed aluminium.
+  const W = 1200;
+  const H = 720;
+  return canvasTexture(W, H, (ctx, w, h) => {
+    // Brushed aluminium, kept light so the type stands out.
     const g = ctx.createLinearGradient(0, 0, w, h);
-    g.addColorStop(0, '#e9edf1');
-    g.addColorStop(0.5, '#c9d0d7');
-    g.addColorStop(1, '#e3e7eb');
+    g.addColorStop(0, '#f4f6f8');
+    g.addColorStop(0.5, '#dde2e7');
+    g.addColorStop(1, '#eef1f4');
     ctx.fillStyle = g;
-    roundRect(ctx, 0, 0, w, h, 26);
+    roundRect(ctx, 0, 0, w, h, 44);
     ctx.fill();
-    ctx.globalAlpha = 0.08;
-    for (let y = 0; y < h; y += 3) {
-      ctx.fillStyle = y % 6 ? '#000' : '#fff';
-      ctx.fillRect(0, y, w, 1);
+    ctx.globalAlpha = 0.05;
+    for (let y = 0; y < h; y += 4) {
+      ctx.fillStyle = y % 8 ? '#000' : '#fff';
+      ctx.fillRect(0, y, w, 2);
     }
     ctx.globalAlpha = 1;
-    // Header band.
-    ctx.fillStyle = '#1d2a36';
-    roundRect(ctx, 24, 22, w - 48, 74, 10);
+    ctx.strokeStyle = '#8a96a2';
+    ctx.lineWidth = 6;
+    roundRect(ctx, 14, 14, w - 28, h - 28, 34);
+    ctx.stroke();
+    // Header band with the brand.
+    const hb = 150;
+    ctx.fillStyle = '#16212b';
+    roundRect(ctx, 56, 44, w - 112, hb, 18);
     ctx.fill();
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.arc(70, 59, 20, 0, Math.PI * 2);
+    ctx.arc(56 + 80, 44 + hb / 2, 42, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#1d2a36';
+    ctx.fillStyle = '#16212b';
     ctx.beginPath();
-    ctx.arc(70, 59, 8, 0, Math.PI * 2);
+    ctx.arc(56 + 80, 44 + hb / 2, 16, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = '800 40px system-ui, "Segoe UI", sans-serif';
     ctx.textBaseline = 'middle';
-    ctx.fillText(brand, 104, 61);
-    // Rows.
-    ctx.font = '600 25px ui-monospace, Consolas, monospace';
+    let fs = 84;
+    ctx.font = `900 ${fs}px system-ui, "Segoe UI", sans-serif`;
+    while (ctx.measureText(brand).width > w - 112 - 190 && fs > 40) {
+      fs -= 4;
+      ctx.font = `900 ${fs}px system-ui, "Segoe UI", sans-serif`;
+    }
+    ctx.fillText(brand, 56 + 160, 44 + hb / 2 + 4);
+    // Rows: as large as the space allows.
+    const top = 44 + hb + 24;
+    const step = (h - top - 46) / rows.length;
+    const size = Math.min(100, Math.floor(step * 0.62));
+    const keyX = 70;
+    const valX = Math.round(keyX + Math.max(...rows.map(([k]) => k.length)) * size * 0.55 + 50);
     rows.forEach(([k, v], i) => {
-      const y = 132 + i * 38;
-      ctx.fillStyle = '#4a5663';
-      ctx.fillText(k, 40, y);
-      ctx.fillStyle = '#111a22';
-      ctx.font = '800 26px ui-monospace, Consolas, monospace';
-      ctx.fillText(v, 270, y);
-      ctx.font = '600 25px ui-monospace, Consolas, monospace';
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.beginPath();
-      ctx.moveTo(36, y + 19);
-      ctx.lineTo(w - 36, y + 19);
-      ctx.stroke();
+      const y = top + step * (i + 0.5);
+      ctx.fillStyle = '#1f2a34';
+      ctx.font = `800 ${Math.round(size * 0.82)}px system-ui, "Segoe UI", sans-serif`;
+      ctx.fillText(k, keyX, y);
+      ctx.fillStyle = '#05090d';
+      let vs = size;
+      ctx.font = `900 ${vs}px system-ui, "Segoe UI", sans-serif`;
+      while (ctx.measureText(v).width > w - valX - 60 && vs > 24) {
+        vs -= 2;
+        ctx.font = `900 ${vs}px system-ui, "Segoe UI", sans-serif`;
+      }
+      ctx.fillText(v, valX, y);
+      if (i < rows.length - 1) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(60, y + step / 2);
+        ctx.lineTo(w - 60, y + step / 2);
+        ctx.stroke();
+      }
     });
     // Rivets.
     for (const [x, y] of [
-      [18, 18],
-      [w - 18, 18],
-      [18, h - 18],
-      [w - 18, h - 18],
+      [34, 34],
+      [w - 34, 34],
+      [34, h - 34],
+      [w - 34, h - 34],
     ]) {
-      const r = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, 11);
+      const r = ctx.createRadialGradient(x - 5, y - 5, 2, x, y, 18);
       r.addColorStop(0, '#ffffff');
-      r.addColorStop(1, '#7d8893');
+      r.addColorStop(1, '#6f7a85');
       ctx.fillStyle = r;
       ctx.beginPath();
-      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
       ctx.fill();
     }
   });
