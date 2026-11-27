@@ -61,26 +61,26 @@ export function coverSketch(): string {
   g += ink(`M${c2[0]} ${c2[1] - 13} L${c2[0]} ${c2[1] - r2 + 8}`, ORANGE, 2.4, 3);
   // Directions of rotation: z₁ counter-clockwise (red), z₂ clockwise (green).
   g += arcArrow(c1[0], c1[1], r1 + 16, 250, 160, RED, 5);
-  g += arcArrow(c2[0], c2[1], r2 + 14, 300, 350, GREEN, 6);
+  g += arcArrow(c2[0], c2[1], r2 + 14, 20, 70, GREEN, 6);
   // Mesh point and its leader.
   g += ink(circle(c1[0] + r1, c1[1], 3), RED, 3, 7);
-  g += ink(`M${c1[0] + r1 + 2} ${c1[1] - 4} C${c1[0] + r1 + 10} 70 ${c1[0] + r1 + 20} 50 ${c1[0] + r1 + 34} 40`, PENCIL, 1.6, 7);
+  g += ink(`M${c1[0] + r1} ${c1[1] - 5} C${c1[0] + r1 - 1} 84 ${c1[0] + r1 + 1} 56 ${c1[0] + r1 - 2} 38`, PENCIL, 1.6, 7);
   // Centre distance with arrows.
-  g += ink(`M${c1[0]} ${c1[1] + 12} L${c1[0]} 212 M${c2[0]} ${c2[1] + 16} L${c2[0]} 212`, PENCIL, 1.2, 8);
-  g += pen.arrow(c1[0] + 40, 206, c1[0] + 2, 206, INK, 2, 8) + pen.arrow(c2[0] - 40, 206, c2[0] - 2, 206, INK, 2, 8);
+  g += ink(`M${c1[0]} ${c1[1] + 12} L${c1[0]} 230 M${c2[0]} ${c2[1] + 16} L${c2[0]} 230`, PENCIL, 1.2, 8);
+  g += pen.arrow(c1[0] + 40, 224, c1[0] + 2, 224, INK, 2, 8) + pen.arrow(c2[0] - 40, 224, c2[0] - 2, 224, INK, 2, 8);
   // "i = 2" circled in the corner.
   g += ink('M262 34 C258 14 318 12 320 32 C322 52 266 56 260 38', RED, 2.2, 10);
 
   let notes = '';
-  notes += text(c1[0] + r1 + 38, 38, lt(L('зацепване', 'mesh')), PENCIL, 17, 8, 'start');
+  notes += text(c1[0] + r1 - 2, 30, lt(L('зацепване', 'mesh')), PENCIL, 17, 8);
   notes += text(c1[0] - 6, c1[1] + r1 + 30, `z₁ = 20`, BLUE, 19, 9);
   notes += text(c1[0] - 6, c1[1] + r1 + 48, lt(L('задвижващо', 'driving')), RED, 16, 9);
-  notes += text(c2[0] + 30, c2[1] + r2 + 22, `z₂ = 40`, ORANGE, 19, 9, 'start');
-  notes += text(c1[0] - r1 - 22, c1[1] - r1 - 6, 'n₁', RED, 20, 10);
-  notes += text(c2[0] + r2 + 6, c2[1] - 14, 'n₂ = n₁/2', GREEN, 17, 10, 'start');
-  notes += text((c1[0] + c2[0]) / 2, 201, 'a = 60 mm', INK, 17, 9);
+  notes += text(c2[0] + r2 + 6, c2[1] + 4, `z₂ = 40`, ORANGE, 19, 9, 'start');
+  notes += text(c1[0] - r1 - 6, c1[1] - r1 - 14, 'n₁', RED, 20, 10);
+  notes += text(c2[0] + 34, c2[1] + r2 + 34, 'n₂ = n₁/2', GREEN, 17, 10, 'start');
+  notes += text((c1[0] + c2[0]) / 2, 219, 'a = 60 mm', INK, 17, 9);
   notes += text(290, 40, 'i = 2', RED, 26, 11);
   notes += text(292, 70, lt(L('по-бавно,', 'slower,')), PENCIL, 16, 12);
   notes += text(292, 88, lt(L('но по-силно!', 'but stronger!')), PENCIL, 16, 12);
-  return pen.svg('-4 0 336 226', g, notes, lt(L('Скица на зъбната предавка', 'Sketch of the gear pair')));
+  return pen.svg('-4 4 336 236', g, notes, lt(L('Скица на зъбната предавка', 'Sketch of the gear pair')));
 }
