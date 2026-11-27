@@ -233,6 +233,7 @@ export function makeParts(L: Layout): PartDef[] {
     build: ({ materials }) => baseGroup(L, materials),
     meta: {
       name: txt('Основа с лагерни опори', 'Base plate with bearing supports'),
+      label: txt('Основа', 'Base'),
       material: txt('Сив чугун EN-GJL-250', 'Grey cast iron EN-GJL-250'),
       func: txt(
         'Носи лагерите и осигурява точното междуосие a = 60 mm и успоредността на двата вала. Грешка тук директно влошава зацепването.',
@@ -273,6 +274,7 @@ export function makeParts(L: Layout): PartDef[] {
     build: ({ materials }) => new THREE.Mesh(keyGeometry(10, KEY1), materials.darkSteel()),
     meta: {
       name: txt('Призматична шпонка 6×6×16', 'Parallel key 6×6×16'),
+      label: txt('Шпонка', 'Key'),
       material: txt('Стомана C45, калибрирана'),
       func: txt(
         'Предава въртящия момент от вала към главината на колелото чрез натиск върху страничните си стени. Изчислява се на смачкване.',
@@ -291,6 +293,7 @@ export function makeParts(L: Layout): PartDef[] {
     build: ({ materials }) => new THREE.Mesh(pinionGeometry(L), materials.paint(PINION_COLOR, 0.55, 0.35)),
     meta: {
       name: txt(`Зъбно колело z₁ = ${z1} (малко)`, `Pinion z₁ = ${z1}`),
+      label: txt(`Колело z₁ = ${z1}`, `Pinion z₁ = ${z1}`),
       material: txt('Стомана 40Cr, повърхностно закалени зъби 48–52 HRC'),
       func: txt(
         L.integral1
@@ -314,6 +317,7 @@ export function makeParts(L: Layout): PartDef[] {
       ballBearing(BRG1.d, BRG1.D, BRG1.B, BRG1.n, BRG1.ball, { ring: materials.bearingSteel, ball: materials.chrome }),
     meta: {
       name: txt('Сачмен лагер 6004 – опора A', 'Ball bearing 6004 – A'),
+      label: txt('Лагер 6004 A', 'Bearing 6004 A'),
       material: txt('Лагерна стомана 100Cr6'),
       func: txt(
         'Опира се в рамото на вала. Поема радиалната сила от зацепването и осевите сили, като позволява въртене с малко триене.',
@@ -335,6 +339,7 @@ export function makeParts(L: Layout): PartDef[] {
       ballBearing(BRG1.d, BRG1.D, BRG1.B, BRG1.n, BRG1.ball, { ring: materials.bearingSteel, ball: materials.chrome }),
     meta: {
       name: txt('Сачмен лагер 6004 – опора B', 'Ball bearing 6004 – B'),
+      label: txt('Лагер 6004 B', 'Bearing 6004 B'),
       material: txt('Лагерна стомана 100Cr6'),
       func: txt('Втората опора на вал 1. Застава непосредствено до колелото и заедно с рамото го фиксира по оста.'),
       dims: [
@@ -372,6 +377,7 @@ export function makeParts(L: Layout): PartDef[] {
     build: ({ materials }) => new THREE.Mesh(keyGeometry(12.5, KEY2), materials.darkSteel()),
     meta: {
       name: txt('Призматична шпонка 8×7×14', 'Parallel key 8×7×14'),
+      label: txt('Шпонка', 'Key'),
       material: txt('Стомана C45, калибрирана'),
       func: txt('Свързва вал 2 с голямото колело. Предава въртящия момент, който тук е два пъти по-голям от този на вал 1.'),
       dims: [
@@ -388,6 +394,7 @@ export function makeParts(L: Layout): PartDef[] {
     build: ({ materials }) => new THREE.Mesh(gearGeometry(L), materials.paint(GEAR_COLOR, 0.6, 0.38)),
     meta: {
       name: txt(`Зъбно колело z₂ = ${z2} (голямо)`, `Gear z₂ = ${z2}`),
+      label: txt(`Колело z₂ = ${z2}`, `Gear z₂ = ${z2}`),
       material: txt('Стомана C45, подобрена 240–280 HB'),
       func: txt(
         `Задвижваното колело. Върти се в обратна посока с n₂ = n₁·${z1}/${z2}. Дискът с олекотяващи отвори намалява масата и инерцията.`,
@@ -409,6 +416,7 @@ export function makeParts(L: Layout): PartDef[] {
       ballBearing(BRG2.d, BRG2.D, BRG2.B, BRG2.n, BRG2.ball, { ring: materials.bearingSteel, ball: materials.chrome }),
     meta: {
       name: txt('Сачмен лагер 6005 – опора A', 'Ball bearing 6005 – A'),
+      label: txt('Лагер 6005 A', 'Bearing 6005 A'),
       material: txt('Лагерна стомана 100Cr6'),
       func: txt('Опира се в рамото ø30 на вал 2 и поема радиалната сила от зацепването.'),
       dims: [
@@ -427,6 +435,7 @@ export function makeParts(L: Layout): PartDef[] {
       ballBearing(BRG2.d, BRG2.D, BRG2.B, BRG2.n, BRG2.ball, { ring: materials.bearingSteel, ball: materials.chrome }),
     meta: {
       name: txt('Сачмен лагер 6005 – опора B', 'Ball bearing 6005 – B'),
+      label: txt('Лагер 6005 B', 'Bearing 6005 B'),
       material: txt('Лагерна стомана 100Cr6'),
       func: txt('Втората опора на вал 2, застава до главината на голямото колело.'),
       dims: [
@@ -436,5 +445,28 @@ export function makeParts(L: Layout): PartDef[] {
     },
   },
 ];
-  return all.filter((p) => !(p.id === 'key1' && L.integral1) && !(p.id === 'key2' && L.integral2));
+  // Exploded view: both shafts first come up out of the supports with everything on them and move apart,
+  // then the bearings and the gears slide off along the shafts; the keys come out last. The assembly game
+  // keeps the old directions (approach).
+  type V = PartDef['position'];
+  const slide: Record<string, { offset: V; order: number }> = {
+    brg1A: { offset: [0, 0, -60], order: 1 },
+    brg1B: { offset: [0, 0, 85], order: 1 },
+    pinion: { offset: [0, 0, 45], order: 2 },
+    brg2A: { offset: [0, 0, -60], order: 1 },
+    brg2B: { offset: [0, 0, 80], order: 1 },
+    gear2: { offset: [0, 0, 40], order: 2 },
+  };
+  const lift: Record<string, V> = { s1: [-40, 105, 0], s2: [40, 105, 0] };
+  return all
+    .filter((p) => !(p.id === 'key1' && L.integral1) && !(p.id === 'key2' && L.integral2))
+    .map((p) => {
+      if (!p.body) return p;
+      const key = p.explode.frame === 'spin';
+      return {
+        ...p,
+        approach: p.approach ?? (key ? undefined : p.explode.offset),
+        explode: { ...p.explode, ...(slide[p.id] ?? {}), ...(key ? { order: 3 } : {}), group: { offset: lift[p.body], order: 0 } },
+      };
+    });
 }

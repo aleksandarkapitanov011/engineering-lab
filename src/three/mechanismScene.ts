@@ -27,6 +27,8 @@ interface PartInstance {
   base: THREE.Vector3;
   offset: THREE.Vector3;
   explodeP: number;
+  /** Progress of the sub-assembly move (explode.group). */
+  groupP: number;
   /** 1 = fully away (not yet installed), animates to 0 on install. */
   away: number;
   awayTarget: number;
@@ -81,7 +83,7 @@ export class MechanismScene {
       this.bodies.set(b.id, inst);
     }
 
-    this.maxOrder = Math.max(0, ...mech.parts.map((p) => p.explode.order));
+    this.maxOrder = Math.max(0, ...mech.parts.map((p) => Math.max(p.explode.order, p.explode.group?.order ?? 0)));
 
     for (const def of mech.parts) {
       const content = new THREE.Group();
@@ -128,6 +130,7 @@ export class MechanismScene {
         base: wrapper.position.clone(),
         offset: new THREE.Vector3(...def.explode.offset),
         explodeP: 0,
+        groupP: 0,
         away: 0,
         awayTarget: 0,
       });
@@ -178,6 +181,8 @@ export class MechanismScene {
     }
     for (const p of this.parts.values()) {
       p.explodeP = smooth(THREE.MathUtils.clamp(this.explode - p.def.explode.order, 0, 1));
+      const g = p.def.explode.group;
+      p.groupP = g ? smooth(THREE.MathUtils.clamp(this.explode - g.order, 0, 1)) : 0;
       if (p.away !== p.awayTarget) {
         const dir = Math.sign(p.awayTarget - p.away);
         p.away = THREE.MathUtils.clamp(p.away + dir * dt * 2.4, 0, 1);
@@ -228,10 +233,11 @@ export class MechanismScene {
     this.applyPose();
   }
 
-  private placeWrapper(def: PartDef, wrapper: THREE.Object3D, content: THREE.Object3D, k: number, away = 0): void {
+  private placeWrapper(def: PartDef, wrapper: THREE.Object3D, content: THREE.Object3D, k: number, away = 0, kg = 0): void {
     const angle = this.frozen.get(def.id) ?? this.bodyAngle(def.body);
     const off = new THREE.Vector3(...def.explode.offset).multiplyScalar(k);
     if (def.explode.frame === 'spin') off.applyAxisAngle(new THREE.Vector3(0, 0, 1), angle);
+    if (def.explode.group && kg > 0) off.add(new THREE.Vector3(...def.explode.group.offset).multiplyScalar(kg));
     if (away > 0) {
       const ap = new THREE.Vector3(...(def.approach ?? def.explode.offset)).multiplyScalar(away);
       if (!def.approach && def.explode.frame === 'spin') ap.applyAxisAngle(new THREE.Vector3(0, 0, 1), angle);
@@ -250,7 +256,7 @@ export class MechanismScene {
 
   private applyPose(): void {
     for (const p of this.parts.values()) {
-      this.placeWrapper(p.def, p.wrapper, p.content, p.explodeP, smooth(p.away));
+      this.placeWrapper(p.def, p.wrapper, p.content, p.explodeP, smooth(p.away), p.groupP);
     }
     if (this.ghost) {
       const p = this.parts.get(this.ghost.id)!;
@@ -414,6 +420,54 @@ export class MechanismScene {
 
   highlightedId(): string | null {
     return this.highlighted;
+  }
+
+  /** Bounding sphere with everything fully exploded (camera fitting for the exploded view). */
+  explodedSphere(): THREE.Sphere {
+    const saved = [...this.parts.values()].map((p) => [p.explodeP, p.groupP]);
+    for (const p of this.parts.values()) {
+      p.explodeP = 1;
+      p.groupP = p.def.explode.group ? 1 : 0;
+    }
+    this.applyPose();
+    const s = this.boundingSphere();
+    [...this.parts.values()].forEach((p, i) => ([p.explodeP, p.groupP] = saved[i]));
+    this.applyPose();
+    return s;
+  }
+
+  /**
+   * The part a tap is meant for. See-through surfaces (the clear cover, parts faded around a selection, the
+   * faded housing) let the tap through to the part behind them; only if nothing else is there do they count.
+   */
+  pickPart(hits: THREE.Intersection[]): string | null {
+    let fallback: string | null = null;
+    for (const hit of hits) {
+      if (hit.object.userData.isCap) continue;
+      const id = this.partIdOf(hit.object);
+      if (!id) continue;
+      fallback ??= id;
+      const p = this.parts.get(id)!;
+      const st = p.mats.find((s) => s.mat === (hit.object as THREE.Mesh).material);
+      const seeThrough = !!st && st.transparent && st.opacity < 0.6;
+      const faded = this.highlighted !== null && this.highlighted !== id && !!p.def.fixed;
+      if (!seeThrough && !faded) return id;
+    }
+    return fallback;
+  }
+
+  /** Visible parts with a point to hang a callout label on (world, centre of the part's bounding box). */
+  labelAnchors(): { id: string; at: THREE.Vector3 }[] {
+    this.root.updateMatrixWorld(true);
+    const out: { id: string; at: THREE.Vector3 }[] = [];
+    const box = new THREE.Box3();
+    for (const [id, p] of this.parts) {
+      if (!p.wrapper.visible) continue;
+      box.makeEmpty();
+      for (const m of p.meshes) if (!m.userData.decal) box.expandByObject(m);
+      if (!box.isEmpty()) out.push({ id, at: box.getCenter(new THREE.Vector3()) });
+    }
+    return out;
   }
 
   /** Objects to raycast for picking (visible parts only). */

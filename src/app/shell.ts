@@ -15,6 +15,7 @@ import type { AppContext, TabId, TabSpec, TabView } from './context';
 import { modelTab } from '../tabs/model';
 import { assembleTab } from '../tabs/assemble';
 import { drawingTab } from '../tabs/drawing';
+import { gearLogo } from '../ui/logo';
 import { theoryTab } from '../tabs/theory';
 
 const TABS: TabSpec[] = [modelTab, assembleTab, drawingTab, theoryTab];
@@ -121,7 +122,7 @@ export class Shell {
         h(
           'div',
           { class: 'brand' },
-          h('div', { class: 'brand-mark', 'aria-hidden': 'true' }),
+          h('div', { class: 'brand-mark', 'aria-hidden': 'true', html: gearLogo }),
           h('div', null, h('h1', null, t('appName')), h('p', null, t('appTagline'))),
         ),
         h('div', { class: 'head-btns' }, this.langButton(), this.themeButton()),

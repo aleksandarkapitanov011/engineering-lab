@@ -29,6 +29,7 @@ export const icons = {
   chevronLeft: wrap('<path d="m15 5-7 7 7 7"/>'),
   chevronDown: wrap('<path d="m5 9 7 7 7-7"/>'),
   chevronUp: wrap('<path d="m5 15 7-7 7 7"/>'),
+  tag: wrap('<path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="8.5" r="1.4"/>'),
   tools: wrap('<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>'),
   check: wrap('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
   ccw: wrap('<path d="M18.5 9A7.5 7.5 0 1 0 19.5 13"/><path d="M19 3.5V9h-5.5"/>'),

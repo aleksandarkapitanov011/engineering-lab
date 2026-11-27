@@ -167,12 +167,27 @@ p {
 .brand-mark {
   width: 40px;
   height: 40px;
-  border-radius: 11px;
-  background:
-    radial-gradient(circle at 50% 50%, var(--bg) 0 7px, transparent 7.5px),
-    repeating-conic-gradient(var(--accent) 0 12deg, transparent 12deg 24deg);
-  mask: radial-gradient(circle, #000 0 17px, transparent 17.5px);
-  -webkit-mask: radial-gradient(circle, #000 0 17px, transparent 17.5px);
+  flex: none;
+  filter: drop-shadow(0 2px 6px rgba(255, 122, 26, 0.35));
+}
+
+.brand-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: brand-spin 18s linear infinite;
+}
+
+@keyframes brand-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark svg {
+    animation: none;
+  }
 }
 
 .section-label {
@@ -532,6 +547,87 @@ p {
 
 .tap-hint.hidden {
   opacity: 0;
+}
+
+/* Callout labels: part names in two columns with leader lines and arrow heads to the parts. */
+.callouts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.callouts[hidden] {
+  display: none;
+}
+
+.callout-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: var(--text-dim);
+}
+
+.callout-lines path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  opacity: 0.85;
+}
+
+.callout-lines path.on {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  opacity: 1;
+}
+
+.callout-lines circle {
+  fill: currentColor;
+}
+
+.callout {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--text);
+  font: 600 12px/20px system-ui, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.callout.right {
+  border-left: 1px solid var(--line);
+  border-right: 3px solid var(--accent);
+}
+
+.callout.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.callout[hidden] {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .callout {
+    height: 20px;
+    padding: 0 7px;
+    font-size: 11px;
+    line-height: 18px;
+  }
 }
 
 .control-panel {

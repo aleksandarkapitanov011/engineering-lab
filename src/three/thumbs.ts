@@ -232,7 +232,7 @@ export function coverPreview(mech: Mechanism): Preview3D {
     dir: mech.camera.views.iso,
     build: () => {
       const s = new MechanismScene(mech);
-      for (const id of ['housing', 'base']) {
+      for (const id of ['housing', 'cover', 'base']) {
         const p = s.parts.get(id);
         if (p) p.wrapper.visible = false;
       }

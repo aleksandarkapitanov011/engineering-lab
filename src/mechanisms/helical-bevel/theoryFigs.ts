@@ -25,7 +25,7 @@ const RPM = 18;
 /** The gearbox model without the housing (and without `hide` parts), turning with `rpm`. */
 function gearbox(c: Fig3DContext, hide: string[] = [], arrows = false): MechanismScene {
   const s = new MechanismScene(helicalBevel);
-  for (const id of ['housing', ...hide]) {
+  for (const id of ['housing', 'cover', ...hide]) {
     const p = s.parts.get(id);
     if (p) p.wrapper.visible = false;
   }

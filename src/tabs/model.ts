@@ -15,6 +15,7 @@ import { cssColour, legendGradient, rainbow, scaleValue, type StressMode } from 
 import { h, fromHTML } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
+import { createCallouts } from '../ui/callouts';
 import { createMeasurePanel } from './measurePanel';
 
 /** Canvas plots of the mechanisms write Bulgarian text: translate it on the way to the canvas. */
@@ -558,6 +559,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   let playing = true;
   let exploded = false;
   let section = false;
+  let labels = false;
   let selected: string | null = null;
   let inputAngle = 0;
   let panel: Panel = 'none';
@@ -587,13 +589,14 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     h('button', { class: 'tool-btn', 'aria-pressed': 'false' }, fromHTML(icon), h('span', null, label), badge ? h('span', { class: 'tool-badge', hidden: true }) : null);
   const explodeBtn = toolBtn(icons.explode, t('explode'));
   const sectionBtn = toolBtn(icons.section, t('section'));
+  const labelsBtn = toolBtn(icons.tag, t('labels'));
   const labBtn = base.lab ? toolBtn(icons.sliders, t('lab'), true) : null;
   const forcesBtn = base.forces ? toolBtn(icons.forces, t('forces')) : null;
   const closeUpBtn = base.closeUp ? toolBtn(icons.mesh, t('closeUp')) : null;
   const stressBtn = base.stress ? toolBtn(icons.stress, t('stress')) : null;
   const mountBtn = base.mounting ? toolBtn(icons.mount, t('mount')) : null;
   const measureBtn = base.measure ? toolBtn(icons.caliper, t('measure')) : null;
-  const toolList = h('div', { class: 'tool-rail' }, explodeBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn, mountBtn, measureBtn);
+  const toolList = h('div', { class: 'tool-rail' }, explodeBtn, labelsBtn, sectionBtn, labBtn, forcesBtn, closeUpBtn, stressBtn, mountBtn, measureBtn);
   // On a phone the tools fold under one button, so they do not cover the model.
   const toolIcon = h('span', { class: 'tool-toggle-icon', html: icons.tools });
   const toolBadge = h('span', { class: 'tool-badge', hidden: true });
@@ -660,7 +663,35 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
   );
 
   const hint = h('div', { class: 'tap-hint' }, t('tapHint'));
-  el.append(h('div', { class: 'overlay-top' }, viewBtns), toolCol, hint, controlPanel);
+  // Callout labels: the name of every part with an arrow to it (option in the tools).
+  const callouts = createCallouts((id) => select(id === selected ? null : id));
+  const updateCallouts = (): void => {
+    const s = scene;
+    const v = viewer;
+    if (!labels || !s || !v || !(panel === 'none' || panel === 'part' || panel === 'lab')) {
+      callouts.hide();
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    const items = s.labelAnchors().map(({ id, at }) => {
+      const p = v.project(at);
+      const def = mech.parts.find((q) => q.id === id)!;
+      return { id, text: lt(def.meta.label ?? def.meta.name), x: p.x - r.left, y: p.y - r.top };
+    });
+    const rail = toolCol.getBoundingClientRect();
+    const covered = sheet.isOpen() ? sheet.el.getBoundingClientRect().top - r.top : r.height - controlPanel.offsetHeight;
+    const bottom = Math.min(r.height, covered) - 10;
+    // Right column: at the screen edge under the tools when there is room (phone: one small button),
+    // otherwise next to the tool column (wide screens: a tall rail of buttons).
+    const railBottom = rail.bottom - r.top + 8;
+    const edge = bottom - railBottom >= Math.ceil(items.length / 2) * 24;
+    callouts.update(
+      items,
+      { left: 8, right: edge ? r.width - 8 : Math.min(r.width, rail.left - r.left) - 8, top: 60, bottom, rightTop: edge ? railBottom : 60 },
+      selected,
+    );
+  };
+  el.append(callouts.el, h('div', { class: 'overlay-top' }, viewBtns), toolCol, hint, controlPanel);
   el.appendChild(sheet.el); // keep the sheet on top of the panel
   // Collapsing the sheet hides the speed panel too and lets the model fill the freed space
   // (close-up views keep their zoom, the forces view keeps room for the arrows).
@@ -688,7 +719,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     }
     playBtn.innerHTML = playing ? icons.pause : icons.play;
     playBtn.setAttribute('aria-label', playing ? t('pause') : t('play'));
-    scene?.setArrows(rpm > 0 && (panel === 'none' || panel === 'part' || panel === 'lab'), shown);
+    scene?.setArrows(rpm > 0 && !exploded && (panel === 'none' || panel === 'part' || panel === 'lab'), shown);
     viewer?.requestRender();
   };
 
@@ -983,7 +1014,21 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     exploded = !exploded;
     explodeBtn.setAttribute('aria-pressed', String(exploded));
     scene?.setExploded(exploded);
+    updateReadouts(); // rotation arrows: hidden while apart
+    // Zoom out to the spread-out parts (and back in when they come together).
+    if (scene && viewer && !isZoomed(panel) && panel !== 'forces') {
+      if (exploded) {
+        const s = scene.explodedSphere();
+        viewer.viewFrom(viewer.viewDirection(), [s.center.x, s.center.y, s.center.z], s.radius * 1.05);
+      } else viewer.viewFrom(viewer.viewDirection(), mech.camera.target, radius);
+    }
     viewer?.requestRender();
+  });
+  labelsBtn.addEventListener('click', () => {
+    labels = !labels;
+    labelsBtn.setAttribute('aria-pressed', String(labels));
+    hint.hidden = labels;
+    updateCallouts();
   });
   sectionBtn.addEventListener('click', () => {
     section = !section;
@@ -1071,13 +1116,14 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
           const anim = s.update(dt);
           if (overlay) closeUpPanel?.setContacts(overlay.update(s.inputAngle).contacts);
           mountOverlay?.update(s.inputAngle);
+          updateCallouts();
           return anim || (playing && rpm > 0);
         }),
         v.onTap((e) => {
           const s = scene;
           if (!s) return;
-          const hit = v.raycast(e.clientX, e.clientY, s.pickables())[0];
-          const id = hit ? s.partIdOf(hit.object) : null;
+          // Taps go through the clear cover and the faded housing to the parts inside.
+          const id = s.pickPart(v.raycast(e.clientX, e.clientY, s.pickables()));
           if (id) select(id === selected ? null : id);
           else if (panel === 'part' || panel === 'none') select(null);
         }),
@@ -1086,6 +1132,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
       updateReadouts();
     },
     deactivate() {
+      callouts.hide();
       cleanups.splice(0).forEach((f) => f());
       if (scene) inputAngle = scene.inputAngle;
       scene?.dispose();

@@ -154,7 +154,7 @@ function endCap(r: number, hole: number, len: number): { cap: THREE.BufferGeomet
  * gears stay visible. Bearing seats have bolted end caps; the cover has flange bolts, an inspection lid with
  * a breather and lifting eyes. Split plane = plane of the shaft axes (y = AXIS_Y), as in real gearboxes.
  */
-function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.Group {
+function housingGroup(kit: Parameters<PartDef['build']>[0]['materials'], part: 'lower' | 'cover'): THREE.Group {
   const H = HOUSING;
   const g = new THREE.Group();
   const t = H.wall;
@@ -268,6 +268,11 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
   const rubber: THREE.BufferGeometry[] = [];
   const copper: THREE.BufferGeometry[] = [];
   const painted: THREE.BufferGeometry[] = [];
+  // The same small parts on the cover (it comes off as one piece in the exploded view).
+  const cSteel: THREE.BufferGeometry[] = [];
+  const cWashers: THREE.BufferGeometry[] = [];
+  const cPainted: THREE.BufferGeometry[] = [];
+  let onCover = true;
   /** Hex head + washer, standing on a surface at `at` with the bolt axis `axis` (outwards). */
   const bolt = (at: THREE.Vector3, axis: 'x' | 'y' | 'z', sign: 1 | -1, r = 2.6, h = 2.2): void => {
     const head = new THREE.CylinderGeometry(r, r, h, 6);
@@ -280,8 +285,8 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
       else if (sign < 0) gg.rotateX(Math.PI);
       gg.translate(at.x, at.y, at.z);
     }
-    steel.push(head);
-    washers.push(wash);
+    (onCover ? cSteel : steel).push(head);
+    (onCover ? cWashers : washers).push(wash);
   };
   const yRoof = top + 8; // top face of the cover
 
@@ -295,11 +300,11 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
   const lid = extrudeCentered(roundedRect(70, 50, 5), 4, { bevel: 0.8, curveSegments: 6 });
   lid.rotateX(-Math.PI / 2);
   lid.translate(lx, yRoof + 3.2, lz);
-  painted.push(lid);
+  cPainted.push(lid);
   for (const dz of [-12, 12]) {
     const rib = new THREE.BoxGeometry(46, 2.2, 2.4);
     rib.translate(lx, yRoof + 6.3, lz + dz);
-    painted.push(rib);
+    cPainted.push(rib);
   }
   for (const [dx, dz] of [
     [-29, -19],
@@ -317,21 +322,21 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
   ventRim.rotateX(Math.PI / 2);
   ventRim.translate(lx, yRoof + 11.5, lz);
   brassParts.push(ventHex, ventDome, ventRim);
-  steel.push(ventNeck);
+  cSteel.push(ventNeck);
 
   // Lifting eye bolts (DIN 580): cast pad, collar, neck and a forged ring standing up.
   for (const x of [xL + 24, xR - 24]) {
     const z = (zB + zF) / 2;
     const pad = new THREE.CylinderGeometry(11, 12, 3, 32);
     pad.translate(x, yRoof + 1.5, z);
-    painted.push(pad);
+    cPainted.push(pad);
     const collar = new THREE.CylinderGeometry(8, 8.5, 3, 32);
     collar.translate(x, yRoof + 4.5, z);
     const neck = new THREE.CylinderGeometry(4.2, 5, 4, 16);
     neck.translate(x, yRoof + 8, z);
     const ring = new THREE.TorusGeometry(8, 2.7, 14, 40);
     ring.translate(x, yRoof + 9.5 + 8 + 1.2, z);
-    steel.push(collar, neck, ring);
+    cSteel.push(collar, neck, ring);
   }
 
   // Flange bolts along the split (heads on the cover flange, with washers), away from the bosses.
@@ -342,6 +347,8 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
   }
   for (const z of [-50, 35, 100]) fb(xR + 4.5, z);
   for (const z of [-50, 103]) fb(xL - 4.5, z);
+
+  onCover = false;
 
   // Base plate with feet: studs, washers and nuts.
   const base = extrudeCentered(roundedRect(xR - xL + 44, zF - zB + 24, 10), BASE_T, { bevel: 1.2, curveSegments: 8 });
@@ -384,13 +391,19 @@ function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.
     washers.push(sc);
   }
 
+  if (part === 'cover') {
+    g.add(new THREE.Mesh(merge(upper), acrylic));
+    g.add(new THREE.Mesh(merge(cPainted), capPaint));
+    g.add(new THREE.Mesh(merge(cSteel), steelBolt));
+    g.add(new THREE.Mesh(merge(cWashers), kit.chrome()));
+    g.add(new THREE.Mesh(merge(brassParts), kit.paint('#c8a04a', 0.85, 0.28)));
+    g.add(new THREE.Mesh(merge(rubber), kit.paint('#1f2328', 0, 0.9)));
+    return g;
+  }
   g.add(new THREE.Mesh(merge(lower), paint));
-  g.add(new THREE.Mesh(merge(upper), acrylic));
   g.add(new THREE.Mesh(merge([...caps, ...painted]), capPaint));
   g.add(new THREE.Mesh(merge([...capBolts, ...steel]), steelBolt));
   g.add(new THREE.Mesh(merge(washers), kit.chrome()));
-  g.add(new THREE.Mesh(merge(brassParts), kit.paint('#c8a04a', 0.85, 0.28)));
-  g.add(new THREE.Mesh(merge(rubber), kit.paint('#1f2328', 0, 0.9)));
   g.add(new THREE.Mesh(merge(copper), kit.paint('#b87333', 0.9, 0.3)));
 
   // Markings: nameplate, cast lettering, rotation arrows on the shaft ends, warning sticker, sight glass.
@@ -423,25 +436,27 @@ export function makeParts(): PartDef[] {
     { label: L('d × D × B', 'd × D × B'), value: `${b.d} × ${b.D} × ${b.B} mm` },
     { label: L('Тела', 'Rolling elements'), value: `${b.n} × ø${n(b.ball, 2)} mm` },
   ];
-  const bearingPart = (id: string, body: string, z: number, b: typeof BRG_6004, out: number, name: LText, func: LText): PartDef => ({
+  const bearingPart = (id: string, body: string, z: number, b: typeof BRG_6004, out: number, name: LText, func: LText, spread = out): PartDef => ({
     id,
     body,
     position: [0, 0, z],
     spin: { outer: 0, balls: 0.4 },
-    explode: { offset: [0, 0, out], order: 0 },
+    explode: { offset: [0, 0, spread], order: 2 },
+    approach: [0, 0, out],
     build: ({ materials }) => bearing(b, materials),
-    meta: { name, material: L('Лагерна стомана 100Cr6', 'Bearing steel 100Cr6'), func, dims: brgInfo(b) },
+    meta: { name, label: L(`Лагер ${id.slice(3)}`, `Bearing ${id.slice(3)}`), material: L('Лагерна стомана 100Cr6', 'Bearing steel 100Cr6'), func, dims: brgInfo(b) },
   });
 
-  return [
+  const list: PartDef[] = [
     {
       id: 'housing',
       fixed: true,
       position: [0, 0, 0],
-      explode: { offset: [0, -30, 0], order: 0 },
-      build: ({ materials }) => housingGroup(materials),
+      explode: { offset: [0, 0, 0], order: 0 },
+      build: ({ materials }) => housingGroup(materials, 'lower'),
       meta: {
-        name: L('Корпус с прозрачен капак', 'Housing with a clear cover'),
+        name: L('Корпус (долна половина)', 'Housing (lower half)'),
+        label: L('Корпус', 'Housing'),
         material: L('Сив чугун EN-GJL-250', 'Grey cast iron EN-GJL-250'),
         func: L(
           'Разделен в равнината на осите: долната половина е от чугун, а горната тук е прозрачна (учебен модел), за да се виждат колелата. Носи лагерите на трите вала и пази точните им положения – междуосието на цилиндричното стъпало и пресичането на осите на коничното под 90°. Лагерите са затворени с капачки на болтове; отдолу е маслената вана.',
@@ -454,10 +469,28 @@ export function makeParts(): PartDef[] {
       },
     },
     {
+      id: 'cover',
+      fixed: true,
+      position: [0, 0, 0],
+      // Comes off first: up and back, out of the way of the shafts.
+      explode: { offset: [0, 190, -170], order: 0 },
+      build: ({ materials }) => housingGroup(materials, 'cover'),
+      meta: {
+        name: L('Капак на корпуса (прозрачен)', 'Housing cover (clear)'),
+        label: L('Капак', 'Cover'),
+        material: L('Акрил (учебен модел); в реален редуктор – чугун', 'Acrylic (teaching model); cast iron in a real gearbox'),
+        func: L(
+          'Горната половина на корпуса. Затваря редуктора над равнината на осите и притиска горните половини на лагерните гнезда. Има ревизионен капак с отдушник (изравнява налягането при загряване) и два рим-болта за повдигане.',
+          'The upper half of the housing. Closes the gearbox above the plane of the axes and holds the upper halves of the bearing seats. Has an inspection lid with a breather (equalises the pressure as it warms up) and two eye bolts for lifting.',
+        ),
+        dims: [{ label: L('Болтове по фланеца', 'Flange bolts'), value: '13 × M8' }],
+      },
+    },
+    {
       id: 'shaft1',
       body: 's1',
       position: [0, 0, 0],
-      explode: { offset: [0, 0, 70], order: 1 },
+      explode: { offset: [0, 0, 0], order: 2 },
       approach: [0, 0, 90],
       build: ({ materials }) => {
         const grp = new THREE.Group();
@@ -469,6 +502,7 @@ export function makeParts(): PartDef[] {
       },
       meta: {
         name: L(`Входящ вал-зъбно колело z₁ = ${Z1}`, `Input pinion shaft z₁ = ${Z1}`),
+        label: L('Входящ вал z₁', 'Input shaft z₁'),
         material: L('Стомана 18CrNiMo7-6, циментирани и закалени зъби', 'Steel 18CrNiMo7-6, case-hardened teeth'),
         func: L(
           'Получава момента от двигателя. Косите зъби са нарязани направо върху вала – колелото е твърде малко за отвор с шпонка. Осовата сила от наклона на зъбите се поема от лагерите.',
@@ -503,7 +537,7 @@ export function makeParts(): PartDef[] {
       id: 'shaft2',
       body: 's2',
       position: [0, 0, 0],
-      explode: { offset: [0, 0, 0], order: 0 },
+      explode: { offset: [0, 0, 0], order: 2 },
       approach: [0, 90, 0],
       build: ({ materials }) => {
         const grp = new THREE.Group();
@@ -514,6 +548,7 @@ export function makeParts(): PartDef[] {
       },
       meta: {
         name: L(`Междинен вал с конично колело z₃ = ${Z3}`, `Intermediate shaft with bevel pinion z₃ = ${Z3}`),
+        label: L('Междинен вал z₃', 'Intermediate shaft z₃'),
         material: L('Стомана 18CrNiMo7-6, циментирани и закалени зъби', 'Steel 18CrNiMo7-6, case-hardened teeth'),
         func: L(
           'Носи голямото косозъбо колело на първото стъпало и коничното малко колело на второто. Коничното колело е изработено заедно с вала и е конзолно – извън двата лагера.',
@@ -537,15 +572,17 @@ export function makeParts(): PartDef[] {
         'Стои непосредствено зад коничното колело и поема най-голямата сила – от конзолното зацепване. Затова е по-голям от останалите.',
         'Sits right behind the bevel pinion and takes the largest force – from the overhung mesh. That is why it is larger than the others.',
       ),
+      45,
     ),
     {
       id: 'key2',
       body: 's2',
       position: [0, 0, 0],
-      explode: { offset: [22, 0, 0], order: 2, frame: 'spin' },
+      explode: { offset: [22, 0, 0], order: 3, frame: 'spin' },
       build: ({ materials }) => new THREE.Mesh(keyGeometry(13, KEY2, (SHAFT2_KEYWAY.z0 + SHAFT2_KEYWAY.z1) / 2), materials.darkSteel()),
       meta: {
         name: L('Призматична шпонка 8×7×16', 'Parallel key 8×7×16'),
+        label: L('Шпонка', 'Key'),
         material: L('Стомана C45, калибрирана', 'Steel C45, bright drawn'),
         func: L('Предава момента от голямото косозъбо колело към междинния вал.', 'Transmits the torque from the large helical gear to the intermediate shaft.'),
         dims: [{ label: L('b × h × l', 'b × h × l'), value: '8 × 7 × 16 mm' }],
@@ -555,7 +592,8 @@ export function makeParts(): PartDef[] {
       id: 'gear2',
       body: 's2',
       position: [0, 0, STAGE1_Z],
-      explode: { offset: [0, 0, 60], order: 1 },
+      explode: { offset: [0, 0, 72], order: 2 },
+      approach: [0, 0, 60],
       build: ({ materials }) => {
         const b = GEAR2_BODY;
         const rim = helicalGear(helicalOutline(Z2, Math.PI / Z2), B2, -tanB / (D2 / 2), [circlePath(b.rimInner)]);
@@ -574,6 +612,7 @@ export function makeParts(): PartDef[] {
       },
       meta: {
         name: L(`Косозъбо колело z₂ = ${Z2}`, `Helical gear z₂ = ${Z2}`),
+        label: L('Косозъбо колело z₂', 'Helical gear z₂'),
         material: L('Стомана 42CrMo4, подобрена и азотирана', 'Steel 42CrMo4, quenched, tempered and nitrided'),
         func: L(
           `Първото стъпало намалява оборотите ${n(Z2 / Z1, 0)} пъти. Косите зъби влизат в зацепване постепенно – предавката е по-тиха и по-натоварваема от правозъбата.`,
@@ -594,12 +633,13 @@ export function makeParts(): PartDef[] {
       60,
       L('Лагер 6004 – вал 2, опора A', 'Bearing 6004 – shaft 2, A'),
       L('Опората в лявата стена на корпуса.', 'The support in the left wall of the housing.'),
+      80,
     ),
     {
       id: 'shaft3',
       body: 's3',
       position: [0, 0, 0],
-      explode: { offset: [0, 0, 80], order: 1 },
+      explode: { offset: [0, 0, 0], order: 2 },
       approach: [0, 0, 100],
       build: ({ materials }) => new THREE.Mesh(steppedShaft(segs(SHAFT3), 0.8, [SHAFT3_KEYWAY, SHAFT3_OUT_KEYWAY]), materials.steel()),
       meta: {
@@ -620,10 +660,11 @@ export function makeParts(): PartDef[] {
       id: 'key3',
       body: 's3',
       position: [0, 0, 0],
-      explode: { offset: [22, 0, 0], order: 2, frame: 'spin' },
+      explode: { offset: [22, 0, 0], order: 3, frame: 'spin' },
       build: ({ materials }) => new THREE.Mesh(keyGeometry(13, KEY3, (SHAFT3_KEYWAY.z0 + SHAFT3_KEYWAY.z1) / 2), materials.darkSteel()),
       meta: {
         name: L('Призматична шпонка 8×7×14', 'Parallel key 8×7×14'),
+        label: L('Шпонка', 'Key'),
         material: L('Стомана C45, калибрирана', 'Steel C45, bright drawn'),
         func: L('Свързва голямото конично колело с изходящия вал.', 'Connects the large bevel gear to the output shaft.'),
         dims: [{ label: L('b × h × l', 'b × h × l'), value: '8 × 7 × 14 mm' }],
@@ -633,7 +674,8 @@ export function makeParts(): PartDef[] {
       id: 'gear4',
       body: 's3',
       position: [0, 0, 0],
-      explode: { offset: [0, 0, -40], order: 1 },
+      explode: { offset: [0, 0, -45], order: 2 },
+      approach: [0, 0, -40],
       build: ({ materials }) => {
         const zHeel = RE * Math.cos(DELTA4);
         const cone = bevelCone(Z4, DELTA4);
@@ -654,6 +696,7 @@ export function makeParts(): PartDef[] {
       },
       meta: {
         name: L(`Конично колело z₄ = ${Z4}`, `Bevel gear z₄ = ${Z4}`),
+        label: L('Конично колело z₄', 'Bevel gear z₄'),
         material: L('Стомана 18CrNiMo7-6, циментирани и закалени зъби', 'Steel 18CrNiMo7-6, case-hardened teeth'),
         func: L(
           'Второто стъпало завърта движението на 90° и намалява оборотите още 2 пъти. Зъбите се стесняват към върха на конуса, където се пресичат осите.',
@@ -674,6 +717,7 @@ export function makeParts(): PartDef[] {
       70,
       L('Лагер 6006 – вал 3, опора A', 'Bearing 6006 – shaft 3, A'),
       L('Опората до коничното колело. Поема силите от зацепването.', 'The support next to the bevel gear. Takes the forces from the mesh.'),
+      100,
     ),
     bearingPart(
       'brg3B',
@@ -685,6 +729,10 @@ export function makeParts(): PartDef[] {
       L('Опората в предната стена, до изходящия край.', 'The support in the front wall, next to the output end.'),
     ),
   ];
+  // Exploded view, step 2 (after the cover is off): everything on a shaft lifts out of the housing together
+  // and the three shafts move apart (body frame of shafts 1 and 2: x = world +z, z = world −x).
+  const lift: Record<string, PartDef['position']> = { s1: [100, 110, 0], s2: [0, 130, 0], s3: [130, 110, 0] };
+  return list.map((p) => (p.body && lift[p.body] ? { ...p, explode: { ...p.explode, group: { offset: lift[p.body], order: 1 } } } : p));
 }
 
 /** For the drawings and the theory: pitch diameters and other derived numbers. */

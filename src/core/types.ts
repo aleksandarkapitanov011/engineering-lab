@@ -20,6 +20,8 @@ export interface PartDimension {
 
 export interface PartMeta {
   name: LText;
+  /** Short name for the callout labels on the model (defaults to `name`). */
+  label?: LText;
   material: LText;
   func: LText;
   dims: PartDimension[];
@@ -31,6 +33,11 @@ export interface ExplodeSpec {
   /** Lower orders move first when exploding and return last. */
   order: number;
   frame?: 'body' | 'spin';
+  /**
+   * Sub-assembly move (body frame, at its own order): e.g. everything on a shaft first lifts out of the
+   * housing together, then comes apart along the shaft with `offset`.
+   */
+  group?: { offset: Vec3; order: number };
 }
 
 export interface PartBuildContext {
