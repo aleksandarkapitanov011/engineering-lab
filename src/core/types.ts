@@ -238,6 +238,8 @@ export interface ForceArrow {
   gap?: number;
   /** Where the label sits along the arrow, 0 = tail, 1 = beyond the tip (default). */
   labelAt?: number;
+  /** Group id (see ForcesDef.groups): only the arrows of the chosen group are drawn. */
+  group?: string;
 }
 
 /** One line of a strength check: stress vs. limit and the resulting safety factor. */
@@ -260,6 +262,13 @@ export interface ForcesResult {
   warnings: LabWarning[];
 }
 
+export interface ForceGroup {
+  id: string;
+  label: LText;
+  focus?: string[];
+  view?: { target: Vec3; dir: Vec3; radius: number };
+}
+
 /** Optional forces & strength panel for the Model tab. `inputRpm` comes from the speed slider. */
 export interface ForcesDef {
   title: LText;
@@ -267,6 +276,12 @@ export interface ForcesDef {
   params: LabParam[];
   /** Colour legend of the arrows; the default shows Ft, Fr and the reactions. */
   legend?: { color: string; label: LText }[];
+  /**
+   * Groups the arrows can be shown in (one at a time, so they do not crowd each other). Each group may keep
+   * some parts in focus (the rest fades) and turn the camera to it. A group without arrows of its own
+   * (e.g. id 'all') shows every arrow.
+   */
+  groups?: ForceGroup[];
   evaluate(values: Record<string, number>, inputRpm: number): ForcesResult;
 }
 

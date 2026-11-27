@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { LText, PartDef } from '../../core/types';
 import { gearOutline, type Pt } from '../../core/involute';
 import { ballBearing, circlePath, extrudeCentered, keyedBorePath, roundedRect, steppedShaft } from '../../three/geom';
-import { bevelGear, helicalGear, merge, rectShape, wallPlate } from './geometry';
+import { bevelGear, helicalGear, merge, wallPlate } from './geometry';
 import {
   ALPHA_T,
   AXIS_Y,
@@ -56,7 +56,6 @@ const n = (v: number, d = 1): string => (Math.round(v * 10 ** d) / 10 ** d).toSt
 
 const HELICAL_COLOR = '#5b8bb8';
 const BEVEL_COLOR = '#c27a45';
-const HOUSING_COLOR = '#93a4b8';
 
 const segs = (list: [number, number, number][]) => list.map(([z0, z1, d]) => ({ z0, z1, r: d / 2 }));
 
@@ -92,54 +91,233 @@ function bearing(b: typeof BRG_6004, kit: Parameters<PartDef['build']>[0]['mater
   return ballBearing(b.d, b.D, b.B, b.n, b.ball, { ring: kit.bearingSteel, ball: kit.chrome });
 }
 
+/**
+ * Wall half of a split housing in its own (u, v) plane: from vBot up to the split plane (lower) or from the
+ * split plane up to vTop (upper), with half-round notches for the bearing bores on the split line.
+ */
+function halfWall(u0: number, u1: number, vBot: number, vTop: number, split: number, notches: { u: number; r: number }[], lower: boolean): THREE.Shape {
+  const s = new THREE.Shape();
+  if (lower) {
+    s.moveTo(u0, vBot);
+    s.lineTo(u1, vBot);
+    s.lineTo(u1, split);
+    for (const n of [...notches].sort((a, b) => b.u - a.u)) {
+      s.lineTo(n.u + n.r, split);
+      s.absarc(n.u, split, n.r, 0, Math.PI, true); // dips down
+    }
+    s.lineTo(u0, split);
+  } else {
+    s.moveTo(u0, split);
+    for (const n of [...notches].sort((a, b) => a.u - b.u)) {
+      s.lineTo(n.u - n.r, split);
+      s.absarc(n.u, split, n.r, Math.PI, 0, true); // arches up
+    }
+    s.lineTo(u1, split);
+    s.lineTo(u1, vTop);
+    s.lineTo(u0, vTop);
+  }
+  s.closePath();
+  return s;
+}
+
+/** Half of a cast bearing boss around the local z axis: the half ring below (y < 0) or above the split. */
+function halfBoss(rIn: number, rOut: number, len: number, lower: boolean): THREE.BufferGeometry {
+  const s = new THREE.Shape();
+  const a0 = lower ? Math.PI : 0;
+  s.absarc(0, 0, rOut, a0, a0 + Math.PI, false);
+  s.absarc(0, 0, rIn, a0 + Math.PI, a0, true);
+  s.closePath();
+  return extrudeCentered(s, len, { bevel: 0.8, curveSegments: 40 });
+}
+
+/** Bolted end cap (local axis +z, centred on z = 0): a disc, optionally with a hole for the shaft, and 6 bolts. */
+function endCap(r: number, hole: number, len: number): { cap: THREE.BufferGeometry; bolts: THREE.BufferGeometry } {
+  const s = new THREE.Shape();
+  s.absarc(0, 0, r, 0, Math.PI * 2, false);
+  if (hole > 0) s.holes.push(circlePath(hole));
+  const cap = extrudeCentered(s, len, { bevel: 1, curveSegments: 48 });
+  const bolts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    const b = new THREE.CylinderGeometry(2.6, 2.6, 2.4, 6);
+    b.rotateX(Math.PI / 2);
+    b.translate((r - 5) * Math.cos(a), (r - 5) * Math.sin(a), len / 2 + 1.2);
+    bolts.push(b);
+  }
+  return { cap, bolts: merge(bolts) };
+}
+
+/**
+ * Split gearbox housing like a real one, made as a teaching model: the lower half is painted cast iron
+ * (walls, inner ribs, bearing bosses, flange, base with feet), the upper half a clear acrylic cover, so the
+ * gears stay visible. Bearing seats have bolted end caps; the cover has flange bolts, an inspection lid with
+ * a breather and lifting eyes. Split plane = plane of the shaft axes (y = AXIS_Y), as in real gearboxes.
+ */
 function housingGroup(kit: Parameters<PartDef['build']>[0]['materials']): THREE.Group {
   const H = HOUSING;
   const g = new THREE.Group();
   const t = H.wall;
   const y0 = BASE_T;
-  const wall = kit.translucent(HOUSING_COLOR, 0.26);
-  const plate = kit.translucent('#7f90a3', 0.45);
-  const xIn0 = H.leftWallX - t / 2;
-  const xIn1 = H.x1;
-  const hole = (u: number, v: number, r: number): THREE.Path => circlePath(r + 0.15, u, v);
+  const split = AXIS_Y;
+  const top = H.top;
+  const paint = kit.paint('#4f6878', 0.28, 0.58); // machine blue-grey
+  const capPaint = kit.paint('#3e5463', 0.3, 0.5);
+  const steelBolt = kit.darkSteel();
+  const acrylic = new THREE.MeshStandardMaterial({
+    color: '#cfe6f5',
+    metalness: 0,
+    roughness: 0.06,
+    transparent: true,
+    opacity: 0.16,
+    depthWrite: false,
+    envMapIntensity: 1.4,
+  });
+  const xL = H.leftWallX - t / 2; // outer face of the left wall
+  const xR = H.x1; // outer face of the right wall
+  const zB = H.z0; // outer face of the back wall
+  const zF = H.frontWallZ + t / 2; // outer face of the front wall
+  const r6004 = BRG_6004.D / 2 + 0.15;
+  const r6005 = BRG_6005.D / 2 + 0.15;
+  const r6006 = BRG_6006.D / 2 + 0.15;
+  const lower: THREE.BufferGeometry[] = [];
+  const upper: THREE.BufferGeometry[] = [];
+  const both = (make: (lowerHalf: boolean) => THREE.BufferGeometry): void => {
+    lower.push(make(true));
+    upper.push(make(false));
+  };
 
-  // Base plate with feet.
-  const base = new THREE.BoxGeometry(xIn1 - xIn0 + 40, BASE_T, H.z1 - H.z0 + 10);
-  base.translate((xIn0 + xIn1) / 2, BASE_T / 2, (H.z0 + H.z1) / 2);
-  g.add(new THREE.Mesh(base, plate));
+  // Walls, split at the axis plane (plane 'x': u = −z, v = y; plane 'z': u = x, v = y).
+  both((lo) => wallPlate(halfWall(-zF, -zB, y0, top, split, [{ u: -S1_Z, r: r6004 }, { u: 0, r: r6004 }], lo), t, 'x', H.leftWallX));
+  both((lo) => wallPlate(halfWall(-(H.frontWallZ - t / 2), -(zB + t), y0, top, split, [{ u: -S1_Z, r: r6004 }, { u: 0, r: r6006 }], lo), t, 'x', H.ribX));
+  both((lo) => wallPlate(halfWall(-zF, -zB, y0, top, split, [], lo), t, 'x', xR - t / 2));
+  both((lo) => wallPlate(halfWall(xL, xR, y0, top, split, [], lo), t, 'z', zB + t / 2));
+  both((lo) => wallPlate(halfWall(xL, xR, y0, top, split, [{ u: 0, r: r6005 }], lo), t, 'z', H.frontWallZ));
+  both((lo) => wallPlate(halfWall(-40, 40, y0, AXIS_Y + 42, split, [{ u: 0, r: r6006 }], lo), t, 'z', H.outRibZ));
 
-  const walls: THREE.BufferGeometry[] = [];
-  // Left wall: bearings A of shafts 1 and 2.
-  const left = rectShape(-H.z1, -H.z0, y0, H.top);
-  left.holes.push(hole(-S1_Z, AXIS_Y, BRG_6004.D / 2), hole(0, AXIS_Y, BRG_6004.D / 2));
-  walls.push(wallPlate(left, t, 'x', H.leftWallX));
-  // Inner rib: bearings B of shafts 1 and 2.
-  const rib = rectShape(-(H.frontWallZ - t / 2), -(H.z0 + t), y0, H.top);
-  rib.holes.push(hole(-S1_Z, AXIS_Y, BRG_6004.D / 2), hole(0, AXIS_Y, BRG_6006.D / 2));
-  walls.push(wallPlate(rib, t, 'x', H.ribX));
-  // Right wall and back wall.
-  walls.push(wallPlate(rectShape(-H.z1, -H.z0, y0, H.top), t, 'x', H.x1 - t / 2));
-  walls.push(wallPlate(rectShape(xIn0, xIn1, y0, H.top), t, 'z', H.z0 + t / 2));
-  // Front wall: bearing B of the output shaft.
-  const front = rectShape(xIn0, xIn1, y0, H.top);
-  front.holes.push(hole(0, AXIS_Y, BRG_6005.D / 2));
-  walls.push(wallPlate(front, t, 'z', H.frontWallZ));
-  // Output rib: bearing A of the output shaft.
-  const outRib = rectShape(-40, 40, y0, AXIS_Y + 42);
-  outRib.holes.push(hole(0, AXIS_Y, BRG_6006.D / 2));
-  walls.push(wallPlate(outRib, t, 'z', H.outRibZ));
-  g.add(new THREE.Mesh(merge(walls), wall));
+  // Split flanges: a rim 9 mm wide around the walls, 7 mm below (iron) and above (acrylic) the split.
+  const rim = (y: number): THREE.BufferGeometry => {
+    const o = new THREE.Shape();
+    const ox0 = xL - 9;
+    const ox1 = xR + 9;
+    const oz0 = zB - 9;
+    const oz1 = zF + 9;
+    const rr = 8;
+    // Shape in (x, −z), so that rotateX(−π/2) puts it in the horizontal plane with the right orientation.
+    o.moveTo(ox0 + rr, -oz1);
+    o.lineTo(ox1 - rr, -oz1);
+    o.quadraticCurveTo(ox1, -oz1, ox1, -oz1 + rr);
+    o.lineTo(ox1, -oz0 - rr);
+    o.quadraticCurveTo(ox1, -oz0, ox1 - rr, -oz0);
+    o.lineTo(ox0 + rr, -oz0);
+    o.quadraticCurveTo(ox0, -oz0, ox0, -oz0 - rr);
+    o.lineTo(ox0, -oz1 + rr);
+    o.quadraticCurveTo(ox0, -oz1, ox0 + rr, -oz1);
+    const hole = new THREE.Path();
+    hole.moveTo(xL, -zF);
+    hole.lineTo(xL, -zB);
+    hole.lineTo(xR, -zB);
+    hole.lineTo(xR, -zF);
+    hole.lineTo(xL, -zF);
+    o.holes.push(hole);
+    const geo = extrudeCentered(o, 7, { bevel: 0.6, curveSegments: 6 });
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, y, 0);
+    return geo;
+  };
+  lower.push(rim(split - 3.5));
+  upper.push(rim(split + 3.5));
 
-  // Foundation bolts.
-  const bolts: THREE.BufferGeometry[] = [];
-  for (const x of [xIn0 - 12, xIn1 + 12]) {
-    for (const z of [H.z0 + 20, H.z1 - 20]) {
+  // Bearing bosses outside the outer walls (left wall: shafts 1 and 2; front wall: output shaft), each with a
+  // bolted end cap. Built along local z, then turned onto the axis; local y stays world y, so the halves split
+  // exactly at the axis plane.
+  const bossLen = 12;
+  const bosses: { at: THREE.Vector3; yaw: number; rIn: number; hole: number }[] = [
+    { at: new THREE.Vector3(xL - bossLen / 2, AXIS_Y, S1_Z), yaw: -Math.PI / 2, rIn: r6004, hole: 10 },
+    { at: new THREE.Vector3(xL - bossLen / 2, AXIS_Y, 0), yaw: -Math.PI / 2, rIn: r6004, hole: 0 },
+    { at: new THREE.Vector3(0, AXIS_Y, zF + bossLen / 2), yaw: 0, rIn: r6005, hole: 12 },
+  ];
+  const caps: THREE.BufferGeometry[] = [];
+  const capBolts: THREE.BufferGeometry[] = [];
+  for (const b of bosses) {
+    const m = new THREE.Matrix4().makeRotationY(b.yaw).setPosition(b.at);
+    const rOut = b.rIn + 12;
+    for (const lo of [true, false]) (lo ? lower : upper).push(halfBoss(b.rIn, rOut, bossLen, lo).applyMatrix4(m));
+    const { cap, bolts } = endCap(rOut - 1, b.hole, 6);
+    cap.translate(0, 0, bossLen / 2 + 3);
+    bolts.translate(0, 0, bossLen / 2 + 3);
+    caps.push(cap.applyMatrix4(m));
+    capBolts.push(bolts.applyMatrix4(m));
+  }
+
+  // Roof of the cover with an inspection lid, a breather and two lifting eyes.
+  const roof = new THREE.Shape();
+  roof.moveTo(xL, -zF);
+  roof.lineTo(xR, -zF);
+  roof.lineTo(xR, -zB);
+  roof.lineTo(xL, -zB);
+  roof.closePath();
+  const roofGeo = extrudeCentered(roof, 8, { bevel: 1.2, curveSegments: 4 });
+  roofGeo.rotateX(-Math.PI / 2);
+  roofGeo.translate(0, top + 4, 0);
+  upper.push(roofGeo);
+  const lid = extrudeCentered(roundedRect(70, 50, 5), 5, { bevel: 0.8, curveSegments: 6 });
+  lid.rotateX(-Math.PI / 2);
+  lid.translate(-60, top + 10.5, 20);
+  const breather = new THREE.CylinderGeometry(4.5, 5.5, 9, 6);
+  breather.translate(-60, top + 17, 20);
+  const eyes: THREE.BufferGeometry[] = [];
+  for (const x of [xL + 18, xR - 18]) {
+    const e = new THREE.TorusGeometry(7, 2.2, 10, 24);
+    e.translate(x, top + 15, (zB + zF) / 2);
+    eyes.push(e);
+  }
+  const lidBolts: THREE.BufferGeometry[] = [];
+  for (const [dx, dz] of [
+    [-29, -19],
+    [29, -19],
+    [-29, 19],
+    [29, 19],
+  ]) {
+    const b = new THREE.CylinderGeometry(2.4, 2.4, 2.2, 6);
+    b.translate(-60 + dx, top + 14, 20 + dz);
+    lidBolts.push(b);
+  }
+
+  // Flange bolts along the split (heads on the cover flange), away from the bosses.
+  const flangeBolts: THREE.BufferGeometry[] = [];
+  const fb = (x: number, z: number): void => {
+    const b = new THREE.CylinderGeometry(3.4, 3.4, 3, 6);
+    b.translate(x, split + 8.5, z);
+    flangeBolts.push(b);
+  };
+  for (const x of [-105, -60, -15, 30]) {
+    fb(x, zB - 4.5);
+    fb(x, zF + 4.5);
+  }
+  for (const z of [-50, 35, 100]) fb(xR + 4.5, z);
+  for (const z of [-50, 103]) fb(xL - 4.5, z);
+
+  // Base plate with feet and foundation bolts; an oil drain plug low on the right wall.
+  const base = extrudeCentered(roundedRect(xR - xL + 44, zF - zB + 24, 10), BASE_T, { bevel: 1.2, curveSegments: 8 });
+  base.rotateX(-Math.PI / 2);
+  base.translate((xL + xR) / 2, BASE_T / 2, (zB + zF) / 2);
+  lower.push(base);
+  const feetBolts: THREE.BufferGeometry[] = [];
+  for (const x of [xL - 12, xR + 12]) {
+    for (const z of [zB + 14, zF - 14]) {
       const b = new THREE.CylinderGeometry(5, 5, 5, 6);
       b.translate(x, BASE_T + 2.5, z);
-      bolts.push(b);
+      feetBolts.push(b);
     }
   }
-  g.add(new THREE.Mesh(merge(bolts), kit.darkSteel()));
+  const plug = new THREE.CylinderGeometry(5, 5, 6, 6);
+  plug.rotateZ(Math.PI / 2);
+  plug.translate(xR + 3, BASE_T + 14, 40);
+
+  g.add(new THREE.Mesh(merge(lower), paint));
+  g.add(new THREE.Mesh(merge(upper), acrylic));
+  g.add(new THREE.Mesh(merge([...caps, lid]), capPaint));
+  g.add(new THREE.Mesh(merge([...capBolts, ...lidBolts, ...flangeBolts, ...feetBolts, plug, breather, ...eyes]), steelBolt));
   return g;
 }
 
@@ -167,11 +345,11 @@ export function makeParts(): PartDef[] {
       explode: { offset: [0, -30, 0], order: 0 },
       build: ({ materials }) => housingGroup(materials),
       meta: {
-        name: L('Корпус (показан в разрез)', 'Housing (shown cut away)'),
+        name: L('Корпус с прозрачен капак', 'Housing with a clear cover'),
         material: L('Сив чугун EN-GJL-250', 'Grey cast iron EN-GJL-250'),
         func: L(
-          'Носи лагерите на трите вала и пази точните им положения: междуосието на цилиндричното стъпало и пресичането на осите на коничното стъпало под 90°. Отдолу е маслената вана – колелата се мажат чрез потапяне.',
-          'Holds the bearings of the three shafts and keeps their exact positions: the centre distance of the helical stage and the 90° intersection of the bevel stage axes. The oil sump is at the bottom – the gears are splash lubricated.',
+          'Разделен в равнината на осите: долната половина е от чугун, а горната тук е прозрачна (учебен модел), за да се виждат колелата. Носи лагерите на трите вала и пази точните им положения – междуосието на цилиндричното стъпало и пресичането на осите на коничното под 90°. Лагерите са затворени с капачки на болтове; отдолу е маслената вана.',
+          'Split in the plane of the axes: the lower half is cast iron, the upper one is clear here (a teaching model), so the gears are visible. Holds the bearings of the three shafts and keeps their exact positions – the centre distance of the helical stage and the 90° intersection of the bevel axes. The bearings are closed with bolted end caps; the oil sump is at the bottom.',
         ),
         dims: [
           { label: L('Габарит', 'Overall size'), value: `${HOUSING.x1 - HOUSING.x0} × ${HOUSING.top} × ${HOUSING.z1 - HOUSING.z0} mm` },

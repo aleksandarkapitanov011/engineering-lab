@@ -5,7 +5,7 @@
  *   - forces & strength check (3D force arrows, safety factors).
  */
 import type { AppContext, TabSpec, TabView } from '../app/context';
-import type { CloseUpDef, CloseUpOverlay, ForcesDef, LabDef, LabParam, LabResult, MeasureOverlay, Mechanism, MountingDef, MountingOverlay, MountingResult, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
+import type { CloseUpDef, CloseUpOverlay, ForceGroup, ForcesDef, LabDef, LabParam, LabResult, MeasureOverlay, Mechanism, MountingDef, MountingOverlay, MountingResult, PartDef, StrengthCheck, StressDef, StressResult } from '../core/types';
 import { solveSpeeds } from '../core/kinematics';
 import { fmt, lt, t, tr } from '../i18n';
 import { Viewer, webglAvailable } from '../three/viewer';
@@ -218,8 +218,23 @@ function createForcesPanel(
   getDef: () => ForcesDef | undefined,
   getRpm: () => number,
   onArrows: (r: ReturnType<ForcesDef['evaluate']>['arrows']) => void,
-): { el: HTMLElement; refresh(): void } {
+  onGroup: (g: ForceGroup | null) => void,
+): { el: HTMLElement; refresh(): void; group(): ForceGroup | null } {
   const first = getDef()!;
+  // Arrow groups: one at a time, so the forces of different meshes do not crowd each other.
+  const groups = first.groups ?? [];
+  let group: ForceGroup | null = groups[0] ?? null;
+  const groupBtns = groups.map((g) => {
+    const b = h('button', { class: 'chip', 'aria-pressed': String(g === group) }, lt(g.label)) as HTMLButtonElement;
+    b.addEventListener('click', () => {
+      group = g;
+      groupBtns.forEach((x, i) => x.setAttribute('aria-pressed', String(groups[i] === g)));
+      refresh();
+      onGroup(g);
+    });
+    return b;
+  });
+  const groupRow = groups.length ? h('div', { class: 'force-groups', role: 'group' }, ...groupBtns) : null;
   const values: Record<string, number> = {};
   for (const p of first.params) values[p.id] = p.default;
   const rpmEl = h('div', { class: 'lab-hint' });
@@ -237,7 +252,8 @@ function createForcesPanel(
     warningsEl.replaceChildren(...warningList(r.warnings));
     checksEl.replaceChildren(...r.checks.map(checkRow));
     valuesEl.replaceChildren(...r.values.flatMap((v) => [h('dt', null, lt(v.label)), h('dd', null, tr(v.value))]));
-    onArrows(r.arrows);
+    const own = group ? r.arrows.filter((a) => a.group === group!.id) : [];
+    onArrows(group && own.length ? own : r.arrows);
   };
   const controls = paramControls(first.params, values, (immediate) => {
     window.clearTimeout(timer);
@@ -259,6 +275,7 @@ function createForcesPanel(
     'div',
     { class: 'lab' },
     h('p', { class: 'lab-intro' }, lt(first.intro)),
+    groupRow,
     ...controls.els,
     rpmEl,
     legend,
@@ -268,7 +285,7 @@ function createForcesPanel(
     h('div', { class: 'info-label', style: 'margin-top:14px' }, t('forcesChecks')),
     checksEl,
   );
-  return { el, refresh };
+  return { el, refresh, group: () => group };
 }
 
 /** Close-up panel: live contact count and facts. */
@@ -654,7 +671,9 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     if (min === sheetMin) return; // opening refits on its own
     sheetMin = min;
     if (!sheet.isOpen()) return; // closing has its own handler
-    updateInsets(!isZoomed(panel), undefined, panel === 'forces' ? 1.45 : 1);
+    // Forces: keep the view of the chosen group (refitted to the new free space).
+    if (panel === 'forces' && forcesPanel) showForceGroup(forcesPanel.group());
+    else updateInsets(!isZoomed(panel), undefined, 1);
   });
 
   const updateReadouts = (): void => {
@@ -774,6 +793,7 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
           arrows?.set(a);
           viewer?.requestRender();
         },
+        (g) => showForceGroup(g),
       )
     : null;
 
@@ -848,15 +868,30 @@ function createModelTab(base: Mechanism, ctx: AppContext): TabView {
     window.setTimeout(() => updateInsets(true), 300);
   };
 
+  /** Focus and camera of a force group (or the whole model). */
+  function showForceGroup(g: ForceGroup | null): void {
+    if (panel !== 'forces') return;
+    scene?.focus(g?.focus ?? null);
+    viewer?.requestRender();
+    window.setTimeout(() => {
+      if (!viewer || panel !== 'forces') return;
+      if (g?.view) {
+        updateInsets();
+        viewer.viewFrom(g.view.dir, g.view.target, g.view.radius, true);
+      } else {
+        // Forces act in the gear plane: look at it almost head-on; arrows reach beyond the model.
+        updateInsets(true, [0.32, 0.28, 1], 1.45);
+      }
+    }, 300);
+  }
+
   const openForces = (): void => {
     if (!base.forces || !forcesPanel) return;
     clearSelection();
     setPanel('forces');
     forcesPanel.refresh();
     sheet.open(lt(base.forces.title), forcesPanel.el, { kicker: lt(base.title) });
-    // Forces act in the gear plane: look at it almost head-on.
-    // Arrows reach beyond the model, so leave extra room around it.
-    window.setTimeout(() => updateInsets(true, [0.32, 0.28, 1], 1.45), 300);
+    showForceGroup(forcesPanel.group());
   };
 
   const openCloseUp = (): void => {

@@ -2067,3 +2067,16 @@ input[type='range'] {
   color: var(--text-dim);
   font-size: 14px;
 }
+
+/* Forces panel: one group of arrows at a time. */
+.force-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+
+.force-groups .chip {
+  font-size: 13px;
+  padding: 6px 12px;
+}

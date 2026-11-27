@@ -451,6 +451,27 @@ export function createForces(): ForcesDef {
         ),
       },
     ],
+    // One group at a time: the forces of the two meshes and the reactions would otherwise crowd each other.
+    groups: [
+      {
+        id: 'hel',
+        label: L('Стъпало 1: косозъбо', 'Stage 1: helical'),
+        focus: ['shaft1', 'gear2', 'shaft2', 'key2'],
+        view: { target: P_HEL, dir: [0.55, 0.55, 1], radius: 82 },
+      },
+      {
+        id: 'bev',
+        label: L('Стъпало 2: конично', 'Stage 2: bevel'),
+        focus: ['shaft2', 'gear4', 'shaft3', 'key3'],
+        view: { target: P_BEV, dir: [0.85, 0.75, -0.6], radius: 78 },
+      },
+      {
+        id: 'brg',
+        label: L('Реакции в лагерите', 'Bearing reactions'),
+        focus: ['shaft1', 'shaft2', 'shaft3', 'brg1A', 'brg1B', 'brg2A', 'brg2B', 'brg3A', 'brg3B'],
+      },
+      { id: 'all', label: L('Всички', 'All') },
+    ],
     legend: [
       { color: C_FT, label: L('Ft – обиколна', 'Ft – tangential') },
       { color: C_FR, label: L('Fr – радиална', 'Fr – radial') },
@@ -626,7 +647,7 @@ export function createForces(): ForcesDef {
 
       // ----- 3D arrows
       const fN = (v: number): string => `${nb(v)} N`;
-      const comp = (at: Vec3, v: Vec3, color: string, label: string): ForceArrow => ({ at, dir: v, magnitude: len(v), label, color });
+      const comp = (at: Vec3, v: Vec3, color: string, label: string): ForceArrow => ({ at, dir: v, magnitude: len(v), label, color, group: at === P_HEL ? 'hel' : 'bev' });
       const hp = r.hel.parts;
       const bp = r.bev.parts;
       const arrows: ForceArrow[] = [
@@ -649,10 +670,10 @@ export function createForces(): ForcesDef {
           const b = res[key];
           const D = sh[key].brg.D;
           const at = along(sh, b.s);
-          arrows.push({ at, dir: b.R, magnitude: b.Fr, label: `R${key}${SUB[i + 1]} = ${fN(b.Fr)}`, color: C_R, mode: 'to', gap: D / 2 + 1, labelAt: 0.45 });
+          arrows.push({ at, dir: b.R, magnitude: b.Fr, label: `R${key}${SUB[i + 1]} = ${fN(b.Fr)}`, color: C_R, mode: 'to', gap: D / 2 + 1, labelAt: 0.45, group: 'brg' });
           if (b.Fa > 0) {
             const top = add(at, [0, D / 2 + 5, 0]);
-            arrows.push({ at: top, dir: mul(sh.u, Math.sign(res.axial)), magnitude: b.Fa, label: `Fa,${key}${SUB[i + 1]} = ${fN(b.Fa)}`, color: C_R, mode: 'to', gap: sh[key].brg.B / 2 + 1, labelAt: 0.3 });
+            arrows.push({ at: top, dir: mul(sh.u, Math.sign(res.axial)), magnitude: b.Fa, label: `Fa,${key}${SUB[i + 1]} = ${fN(b.Fa)}`, color: C_R, mode: 'to', gap: sh[key].brg.B / 2 + 1, labelAt: 0.3, group: 'brg' });
           }
         }
       });

@@ -155,6 +155,11 @@ export function createForces(L: Layout): ForcesDef {
   return {
     title: bg('Сили и якостна проверка'),
     intro: bg('Задай мощността и коефициента на натоварване. Оборотите n₁ се вземат от плъзгача на модела. Проверката е опростена – за учебни цели.'),
+    groups: [
+      { id: 'mesh', label: { bg: 'Зацепване', en: 'Mesh' }, focus: ['pinion', 'gear2', 'shaft1', 'shaft2'], view: { target: [L.g1.d / 2, L.axisY, 0], dir: [0.35, 0.4, 1], radius: 78 } },
+      { id: 'brg', label: { bg: 'Реакции в лагерите', en: 'Bearing reactions' }, focus: ['shaft1', 'shaft2', 'pinion', 'gear2', 'brg1A', 'brg1B', 'brg2A', 'brg2B'] },
+      { id: 'all', label: { bg: 'Всички', en: 'All' } },
+    ],
     params: [
       { id: 'P', label: bg('Мощност P'), kind: 'range', min: 0.1, max: 10, step: 0.05, default: 0.75, format: (v) => `${n(v, 2)} kW` },
       {
@@ -288,14 +293,14 @@ export function createForces(L: Layout): ForcesDef {
       const shaft1Reaction: [number, number, number] = [r.Fr, r.Ft, 0];
       const shaft2Reaction: [number, number, number] = [-r.Fr, -r.Ft, 0];
       const arrows = [
-        { at: P, dir: [0, 1, 0], magnitude: r.Ft, label: `Ft₂ = ${fmtN(r.Ft)}`, color: '#ff5a3c' },
-        { at: P, dir: [1, 0, 0], magnitude: r.Fr, label: `Fr₂ = ${fmtN(r.Fr)}`, color: '#3c9dff' },
-        { at: P, dir: [0, -1, 0], magnitude: r.Ft, label: 'Ft₁', color: '#ff5a3c' },
-        { at: P, dir: [-1, 0, 0], magnitude: r.Fr, label: 'Fr₁', color: '#3c9dff' },
-        { at: [0, y, BRG1A_Z], dir: shaft1Reaction, magnitude: r.RA1, label: `RA₁ = ${fmtN(r.RA1)}`, color: '#2fbf71', mode: 'to', gap: BRG1.D / 2 + 1 },
-        { at: [0, y, BRG1B_Z], dir: shaft1Reaction, magnitude: r.RB1, label: `RB₁ = ${fmtN(r.RB1)}`, color: '#2fbf71', mode: 'to', gap: BRG1.D / 2 + 1, labelAt: 0.45 },
-        { at: [L.a, y, BRG2A_Z], dir: shaft2Reaction, magnitude: r.RA2, label: `RA₂ = ${fmtN(r.RA2)}`, color: '#2fbf71', mode: 'to', gap: BRG2.D / 2 + 1 },
-        { at: [L.a, y, BRG2B_Z], dir: shaft2Reaction, magnitude: r.RB2, label: `RB₂ = ${fmtN(r.RB2)}`, color: '#2fbf71', mode: 'to', gap: BRG2.D / 2 + 1, labelAt: 0.45 },
+        { at: P, dir: [0, 1, 0], magnitude: r.Ft, label: `Ft₂ = ${fmtN(r.Ft)}`, color: '#ff5a3c', group: 'mesh' },
+        { at: P, dir: [1, 0, 0], magnitude: r.Fr, label: `Fr₂ = ${fmtN(r.Fr)}`, color: '#3c9dff', group: 'mesh' },
+        { at: P, dir: [0, -1, 0], magnitude: r.Ft, label: 'Ft₁', color: '#ff5a3c', group: 'mesh' },
+        { at: P, dir: [-1, 0, 0], magnitude: r.Fr, label: 'Fr₁', color: '#3c9dff', group: 'mesh' },
+        { at: [0, y, BRG1A_Z], dir: shaft1Reaction, magnitude: r.RA1, label: `RA₁ = ${fmtN(r.RA1)}`, color: '#2fbf71', mode: 'to', gap: BRG1.D / 2 + 1, group: 'brg' },
+        { at: [0, y, BRG1B_Z], dir: shaft1Reaction, magnitude: r.RB1, label: `RB₁ = ${fmtN(r.RB1)}`, color: '#2fbf71', mode: 'to', gap: BRG1.D / 2 + 1, labelAt: 0.45, group: 'brg' },
+        { at: [L.a, y, BRG2A_Z], dir: shaft2Reaction, magnitude: r.RA2, label: `RA₂ = ${fmtN(r.RA2)}`, color: '#2fbf71', mode: 'to', gap: BRG2.D / 2 + 1, group: 'brg' },
+        { at: [L.a, y, BRG2B_Z], dir: shaft2Reaction, magnitude: r.RB2, label: `RB₂ = ${fmtN(r.RB2)}`, color: '#2fbf71', mode: 'to', gap: BRG2.D / 2 + 1, labelAt: 0.45, group: 'brg' },
       ] as ForcesResult['arrows'];
 
       const rows = [

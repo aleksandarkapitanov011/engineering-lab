@@ -113,7 +113,7 @@ function gearGeometry(L: Layout): THREE.BufferGeometry {
 
 function baseGroup(
   L: Layout,
-  kit: { translucent: (c: string, o: number) => THREE.Material; darkSteel: () => THREE.Material },
+  kit: { paint: (c: string, m?: number, r?: number) => THREE.Material; darkSteel: () => THREE.Material },
 ): THREE.Group {
   const g = new THREE.Group();
   const A = L.a;
@@ -126,7 +126,10 @@ function baseGroup(
   const plate = extrudeCentered(plateShape, 8, { bevel: 0.8, curveSegments: 6 });
   plate.rotateX(-Math.PI / 2);
   plate.translate(-left + plateW / 2, -4, -2.5);
-  g.add(new THREE.Mesh(plate, kit.translucent('#8796a6', 0.42)));
+  // Painted cast iron, like a finished machine (the gears stay open between the supports).
+  const iron = kit.paint('#4f6878', 0.28, 0.58);
+  const capPaint = kit.paint('#3e5463', 0.3, 0.5);
+  g.add(new THREE.Mesh(plate, kit.paint('#3f5361', 0.3, 0.6)));
 
   // Bearing supports: one pillow per bearing, so they still build when the bearings clash.
   const pillow = (cx: number, boreR: number): THREE.Shape => {
@@ -144,9 +147,38 @@ function baseGroup(
     for (const s of shapes) {
       const w = extrudeCentered(s, WALL_T, { bevel: 0.6, curveSegments: 40 });
       w.translate(0, 0, z);
-      g.add(new THREE.Mesh(w, kit.translucent('#9fb3c8', 0.3)));
+      g.add(new THREE.Mesh(w, iron));
     }
   }
+  // Bolted bearing caps on the outer faces of the supports (with a hole for the shaft).
+  const caps: THREE.BufferGeometry[] = [];
+  const capBolts: THREE.BufferGeometry[] = [];
+  for (const [z, dir] of [
+    [WALL_A_Z - WALL_T / 2, -1],
+    [WALL_B_Z + WALL_T / 2, 1],
+  ] as [number, number][]) {
+    for (const [cx, brg] of [
+      [0, BRG1],
+      [A, BRG2],
+    ] as [number, typeof BRG1][]) {
+      const r = brg.D / 2 + 8;
+      const s = new THREE.Shape();
+      s.absarc(0, 0, r, 0, Math.PI * 2, false);
+      s.holes.push(circlePath(brg.d / 2 + 1.2));
+      const cap = extrudeCentered(s, 5, { bevel: 0.8, curveSegments: 40 });
+      cap.translate(cx, AXIS_Y, z + dir * 2.5);
+      caps.push(cap);
+      for (let i = 0; i < 4; i++) {
+        const a = Math.PI / 4 + (i * Math.PI) / 2;
+        const b = new THREE.CylinderGeometry(2.4, 2.4, 2.2, 6);
+        b.rotateX(Math.PI / 2);
+        b.translate(cx + (r - 4.5) * Math.cos(a), AXIS_Y + (r - 4.5) * Math.sin(a), z + dir * 6.1);
+        capBolts.push(b);
+      }
+    }
+  }
+  g.add(new THREE.Mesh(merge(caps), capPaint));
+  g.add(new THREE.Mesh(merge(capBolts), kit.darkSteel()));
   // Hex bolts fixing each support to the plate.
   const bolts: THREE.BufferGeometry[] = [];
   for (const z of [WALL_A_Z, WALL_B_Z]) {
@@ -178,7 +210,7 @@ export function makeParts(L: Layout): PartDef[] {
     build: ({ materials }) => baseGroup(L, materials),
     meta: {
       name: txt('Основа с лагерни опори', 'Base plate with bearing supports'),
-      material: txt('Сив чугун EN-GJL-250 (показан полупрозрачен)', 'Grey cast iron EN-GJL-250'),
+      material: txt('Сив чугун EN-GJL-250', 'Grey cast iron EN-GJL-250'),
       func: txt(
         'Носи лагерите и осигурява точното междуосие a = 60 mm и успоредността на двата вала. Грешка тук директно влошава зацепването.',
       ),
