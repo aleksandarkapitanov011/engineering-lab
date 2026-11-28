@@ -4,11 +4,11 @@
  */
 import type { DrawingNote, LText } from '../../../core/types';
 import { lt } from '../../../i18n';
-import { circle, f, line, note, path, polyline, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
+import { circle, dim, f, line, note, path, polyline, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
 import { BRG_6004, BRG_6005, BRG_6006, D1, D2, DE4, DELTA4, GEAR2_BODY, HOUSING, KEY2, KEY3, RE, S1_Z, STAGE1_Z, SHAFT2_KEYWAY, SHAFT3_KEYWAY, Z4, A1 } from '../params';
 import { bevelProfile, HEL } from './derived';
 import { BP3, SH1, SH2, SH3 } from './shafts';
-import { COMMON_NOTES, L, N, T, requirements, stepProfile, vd } from './kit';
+import { COMMON_NOTES, L, N, T, diaInside, hd, requirements, stepProfile, vd } from './kit';
 
 type P = [number, number];
 const Xo = 200;
@@ -75,6 +75,10 @@ const BOM: { key: string; name: LText; qty: number; mat: string }[] = [
   { key: 'p9', name: L('Лагер 6005', 'Bearing 6005'), qty: 1, mat: 'ISO 15' },
   { key: 'p10', name: L('Шпонка 8×7×16', 'Key 8×7×16'), qty: 1, mat: 'C45 · ISO 773' },
   { key: 'p11', name: L('Шпонка 8×7×14', 'Key 8×7×14'), qty: 1, mat: 'C45 · ISO 773' },
+  { key: 'p12', name: L('Капак на лагер, проходен', 'Bearing cap, through'), qty: 2, mat: 'EN-GJL-200' },
+  { key: 'p13', name: L('Капак на лагер, глух', 'Bearing cap, blind'), qty: 1, mat: 'EN-GJL-200' },
+  { key: 'p14', name: L('Маншет 18×30×7', 'Lip seal 18×30×7'), qty: 1, mat: 'NBR · ISO 6194' },
+  { key: 'p15', name: L('Маншет 22×35×7', 'Lip seal 22×35×7'), qty: 1, mat: 'NBR · ISO 6194' },
 ];
 
 export const assemblyNotes: Record<string, DrawingNote> = {
@@ -132,6 +136,24 @@ export const assemblyNotes: Record<string, DrawingNote> = {
       'Gears on the shafts: H7/k6. The inner bearing rings rotate – k6 on the shaft (interference). The outer rings stand still – H7 in the housing (they can slide axially).',
     ),
   ),
+  caps: N(
+    L('Капаци и уплътнения', 'Caps and seals'),
+    L(
+      'Лагерите се затварят с капаци, закрепени с болтове към главините на корпуса. Капакът с отвор (проходен) носи маншет – гумено уплътнение с пружина, което притиска устна към вала и не пуска маслото навън. Където валът не излиза, капакът е глух.',
+      'The bearings are closed by caps bolted to the bosses of the housing. A cap with a hole (through cap) carries a lip seal – a rubber ring with a spring that presses a lip onto the shaft and keeps the oil in. Where no shaft comes out, the cap is blind.',
+    ),
+  ),
+  overall: N(
+    L('Габаритни размери', 'Overall dimensions'),
+    L('Външните размери на корпуса – нужни за мястото, където редукторът се монтира.', 'The outside size of the housing – needed for the place where the gearbox is mounted.'),
+  ),
+  connect: N(
+    L('Присъединителни размери', 'Connecting dimensions'),
+    L(
+      'Краищата на входящия и изходящия вал: диаметър k6 и дължина. По тях се избират съединителите към двигателя и към работната машина.',
+      'The ends of the input and output shafts: diameter k6 and length. The couplings to the motor and to the driven machine are chosen from them.',
+    ),
+  ),
   oil: N(
     L('Мазане', 'Lubrication'),
     L('Колелата газят в масло и го разпръскват към лагерите. ISO VG 220 е обичайният вискозитет за индустриални редуктори.', 'The gears dip into the oil and splash it onto the bearings. ISO VG 220 is the usual viscosity for industrial gearboxes.'),
@@ -143,6 +165,9 @@ function assemblySvg(): string {
   const H = HOUSING;
   const t = H.wall / 2;
   let s = sheetStart();
+  s += `<defs><pattern id="hatchx" patternUnits="userSpaceOnUse" width="2.4" height="2.4" patternTransform="rotate(-45)">
+    <rect width="2.4" height="2.4" fill="#e8e2d6"/><line x1="0" y1="0" x2="0" y2="2.4" stroke="#1d232b" stroke-width="0.22"/></pattern></defs>
+    <style>.tdraw .hatchx{fill:url(#hatchx);stroke:none}</style>`;
   let g = '';
 
   // ---- Housing walls (hatched), with the bores left open.
@@ -236,6 +261,62 @@ function assemblySvg(): string {
   b += bearing(AX3, 40, BRG_6006) + bearing(AX3, 106, BRG_6005);
   s += note('bearings', b, { x: W(-126, S1_Z - 21)[0], y: W(-126, S1_Z - 21)[1], w: 12, h: 42 });
 
+  // Bearing bosses (part of the housing) with bolted end caps; through caps carry a lip seal (ISO 6194,
+  // simplified to ISO 9222-1: a rectangle with the diagonal of the lip).
+  {
+    const caps: { a: Ax; face: number; brgEnd: number; D: number; shaft?: number; seal?: number }[] = [
+      { a: AX1, face: 125, brgEnd: 126, D: BRG_6004.D, shaft: 18, seal: 30 },
+      { a: AX2, face: 125, brgEnd: 126, D: BRG_6004.D },
+      { a: AX3, face: H.frontWallZ + t, brgEnd: 112, D: BRG_6005.D, shaft: 22, seal: 35 },
+    ];
+    const poly = (a: Ax, pts: P[], sg: number): P[] => pts.map(([sx, r]) => at(a, sx, sg * r));
+    let cg = '';
+    for (const c of caps) {
+      const rB = c.D / 2;
+      const rO = rB + 12;
+      const s0 = c.face;
+      const s1 = s0 + 12; // outer face of the boss
+      const s2 = s1 + 6; // outer face of the cap flange
+      for (const sg of [1, -1]) {
+        cg += hatched(poly(c.a, [[s0, rB], [s1, rB], [s1, rO], [s0, rO]], sg));
+        if (c.shaft && c.seal) {
+          const rh = c.shaft / 2 + 1.5;
+          const rs = c.seal / 2;
+          const capPts: P[] = [[c.brgEnd, rh], [s2 - 7, rh], [s2 - 7, rs], [s2, rs], [s2, rO - 1], [s1, rO - 1], [s1, rB], [c.brgEnd, rB]];
+          const pts = poly(c.a, capPts, sg);
+          cg += path(pd(pts), 'hatchx') + polyline(pts, 'thick', true);
+          const seal = poly(c.a, [[s2 - 7, c.shaft / 2], [s2, c.shaft / 2], [s2, rs], [s2 - 7, rs]], sg);
+          cg += `<path d="${pd(seal)}" style="fill:#fff"/>` + polyline(seal, 'thick', true) + seg(seal[0], seal[2], 'thin');
+        }
+      }
+      if (!c.shaft) {
+        const blind: P[] = [[c.brgEnd, -rB], [s1, -rB], [s1, -(rO - 1)], [s2, -(rO - 1)], [s2, rO - 1], [s1, rO - 1], [s1, rB], [c.brgEnd, rB]];
+        const pts = blind.map(([sx, r]) => at(c.a, sx, r));
+        cg += path(pd(pts), 'hatchx') + polyline(pts, 'thick', true);
+      }
+    }
+    s += note('caps', cg, { x: W(-143, S1_Z - 33)[0], y: W(-143, S1_Z - 33)[1], w: 18, h: 66 });
+  }
+
+  // Overall dimensions of the housing and the connecting dimensions of the shaft ends.
+  {
+    const [hx0, hy0] = W(H.x0, H.z0);
+    const [hx1, hy1] = W(H.x1, H.z1);
+    s += hd(hx0, hy1, hx1, hy1, hy1 + 12, String(H.x1 - H.x0), { note: 'overall' });
+    s += vd(hx1, hy0, hx1, hy1, hx1 + 12, String(H.z1 - H.z0), { note: 'overall' });
+    // Input end ø18k6, 27 mm beyond the cap.
+    const i0 = at(AX1, 143, -9);
+    const i1 = at(AX1, 170, -9);
+    s += hd(i0[0], i0[1], i1[0], i1[1], i0[1] - 10, '27', { note: 'connect' });
+    s += diaInside(at(AX1, 162, 0)[0], at(AX1, 162, 0)[1], 9, 'ø18k6', { note: 'connect', size: 3 });
+    // Output end ø22k6, 31 mm beyond the cap.
+    const o0 = at(AX3, 129, 11);
+    const o1 = at(AX3, 160, 11);
+    s += vd(o0[0], o0[1], o1[0], o1[1], o0[0] + 9, '31', { note: 'connect' });
+    const oc = at(AX3, 150, 0);
+    s += dim(oc[0] - 11, oc[1], oc[0] + 11, oc[1], 0, 'ø22k6', { note: 'connect', size: 3 });
+  }
+
   // Mesh zones and the cone apex.
   s += note('mesh', '', { x: W(-96, 48)[0], y: W(-96, 48)[1], w: 26, h: 9 });
   s += note('apex', circle(Xo, Yo, 1.4, 'thin'), { x: Xo - 5, y: Yo - 5, w: 10, h: 10 });
@@ -256,12 +337,16 @@ function assemblySvg(): string {
   s += balloon(3, [-108, 4], [-150, 30], 'p3');
   s += balloon(4, [-83, -40], [-100, -84], 'p4');
   s += balloon(5, [3, 140], [26, 150], 'p5');
-  s += balloon(6, [28, 22], [70, 22], 'p6');
+  s += balloon(6, [28, 22], [84, 50], 'p6');
   s += balloon(7, [-120, S1_Z + 17], [-146, 122], 'p7');
-  s += balloon(8, [18, 40], [70, 46], 'p8');
+  s += balloon(8, [18, 40], [84, 66], 'p8');
   s += balloon(9, [-15, 106], [-42, 132], 'p9');
   s += balloon(10, [-83, 12], [-62, -84], 'p10');
-  s += balloon(11, [12, 18], [70, -2], 'p11');
+  s += balloon(11, [12, 18], [84, 34], 'p11');
+  s += balloon(12, [-140, S1_Z + 22], [-168, 124], 'p12');
+  s += balloon(13, [-140, -16], [-168, -30], 'p13');
+  s += balloon(14, [-139.5, S1_Z + 12], [-178, 96], 'p14');
+  s += balloon(15, [14, 126.5], [46, 140], 'p15');
 
   // Parts list, top right (clear of the housing).
   const tx = 280;
@@ -297,6 +382,7 @@ function assemblySvg(): string {
     { t: L('Конична двойка: контактно петно по средата, ≥ 60 %.', 'Bevel pair: contact pattern centred, ≥ 60 %.'), key: 'contact' },
     { t: L('Сглобки: колела H7/k6, лагери k6 / H7.', 'Fits: gears H7/k6, bearings k6 / H7.'), key: 'fits' },
     { t: L('Масло ISO VG 220, мазане чрез разпръскване.', 'Oil ISO VG 220, splash lubrication.'), key: 'oil' },
+    { t: L('Маншетите – със смазана устна, пружината към маслото.', 'Lip seals: lip greased, spring towards the oil.'), key: 'caps' },
   ]);
   s += titleBlock(410, 287, {
     name: lt(L('Цилиндрично-коничен редуктор', 'Helical-bevel gearbox')),

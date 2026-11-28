@@ -1345,6 +1345,24 @@ input[type='range'] {
   fill: #24497a;
 }
 
+.tdraw .fcf-fill {
+  fill: #ffffff;
+}
+
+.tdraw .datum-tri {
+  fill: var(--ink);
+}
+
+.tdraw .gsym {
+  fill: none;
+}
+
+.tdraw .part3d-frame {
+  fill: #ffffff;
+  stroke: #c9d2dc;
+  stroke-width: 0.3;
+}
+
 .tdraw .frame {
   stroke-width: 0.9;
 }

@@ -1,7 +1,9 @@
 /** Part drawings of the helical gear z₂ and the bevel gear z₄. */
 import type { DrawingNote } from '../../../core/types';
 import { lt } from '../../../i18n';
-import { circle, dim, f, leader, line, note, path, polyline, roughness, sheetEnd, sheetStart, titleBlock } from '../../../ui/svgdraw';
+import { circle, dim, f, leader, line, note, part3d, path, polyline, roughness, sheetEnd, sheetStart, titleBlock } from '../../../ui/svgdraw';
+import { datum, fcf, FH, iso1328 } from '../../../ui/gdt';
+import { helicalSpan, W_EI, W_ES } from '../measure';
 import { A1, B2, BB, BETA, D2, DE4, DELTA4, GEAR2_BODY, KEY2, KEY3, MB, MN, RE, Z1, Z2, Z3, Z4 } from '../params';
 import { bevelProfile, HEL } from './derived';
 import { BEVEL_NOTES, HELICAL_NOTES } from './gearNotes';
@@ -173,6 +175,17 @@ function gear2Svg(): string {
   s += leader(Xe + KEY2.b / 2, Ye - B.bore - KEY2.t2 + 0.4, Xe - 20, Ye - 66, '8JS9 (±0,018)', 'hubkey', false);
   s += diaInside(Xe + 2.2, Ye - KEY2.t2 / 2, B.bore + KEY2.t2 / 2, nb(2 * B.bore + KEY2.t2, 1), { note: 'hubdepth', tol: ['+0,2', '0'], size: 2.4 });
 
+  // Tolerancing: the bore is datum A; runout of the teeth and of the rim face, the keyway centred.
+  const tol2 = iso1328(7, MN, D2, B2);
+  const um = (v: number): string => nb(v / 1000, 3);
+  s += datum(x1 + 10, Ym + rb + 0.4, 'A', 'down', 12, 'bore');
+  s += fcf(Xe - FH / 2, Ye + HEL.da2 / 2 + 8, 'runout', um(tol2.Fr), ['A'], { from: 'top', to: [Xe, Ye + HEL.da2 / 2 + 0.6], note: 'runout' });
+  s += fcf(x1 + 14, y(ra) + 5, 'runout', '0,02', ['A'], { from: 'left', to: [x1 + 0.6, y(ra) + 8.8], arrowAngle: Math.PI, note: 'axrunout' });
+  // Symmetry of the hub keyway: the frame hangs under its width dimension (8JS9).
+  s += fcf(Xe - 64, Ye - 64.6, 'sym', '0,02', ['A'], { note: 'sym' }) + line(Xe - 64 + FH / 2, Ye - 64.6, Xe - 64 + FH / 2, Ye - 66, 'thin');
+  const span = helicalSpan(MN, Z2);
+  s += part3d(300, 140, 104, 58, 'gear2', lt(L('изглед за справка', 'reference view')));
+
   s += dataTable(300, 16, L('ДАННИ ЗА ЗЪБНОТО КОЛЕЛО', 'GEAR DATA'), [
     [L('Нормален модул', 'Normal module'), 'mₙ', nb(MN, 0), 'mn'],
     [L('Брой зъби', 'Number of teeth'), 'z', String(Z2), 'z'],
@@ -185,6 +198,13 @@ function gear2Svg(): string {
     [L('Степен на точност', 'Accuracy grade'), '—', '7 (ISO 1328)', 'grade'],
     [L('Спрегнато колело', 'Mating gear'), 'z₁', `${Z1} (EL-HB-001)`, 'mate'],
     [L('Междуосие', 'Centre distance'), 'a', `${A1} ± 0,025`, 'a'],
+    [L('Брой зъби в размера', 'Teeth spanned'), 'k', String(span.k), 'span'],
+    [L('Размер през k зъба', 'Span measurement'), 'W', `${nb(span.W, 3)} ${nb(W_ES, 2)}/${nb(W_EI, 2)}`, 'span'],
+    [L('Единична стъпка', 'Single pitch'), 'fpt', `±${um(tol2.fpt)}`, 'iso1328'],
+    [L('Натрупана стъпка', 'Cumulative pitch'), 'Fp', um(tol2.Fp), 'iso1328'],
+    [L('Профил', 'Profile'), 'Fα', um(tol2.Fa), 'iso1328'],
+    [L('Линия на зъба', 'Helix'), 'Fβ', um(tol2.Fb), 'iso1328'],
+    [L('Радиално биене', 'Radial runout'), 'Fr', um(tol2.Fr), 'iso1328'],
   ]);
 
   s += generalRoughness(372, 236);
@@ -295,7 +315,7 @@ function gear4Svg(): string {
   s += dim(X(pt[0]), Y(pt[1]), X(ph[0]), Y(ph[1]), 14, String(BB), { note: 'b', size: 3 });
   s += dim(X(0), Ym, X(ph[0]), Y(ph[1], -1), -12, `Rₑ ${nb(RE, 2)}`, { note: 'Re', size: 3 });
   s += leader(X(p.tipToe[0]) - 0.5, Y(p.tipToe[1]) + 0.3, X(p.tipToe[0]) - 14, Y(p.tipToe[1]) - 8, '0,5×45°', 'chamfer', false);
-  s += roughness(X(REAR) - 7, Y(13, -1), '1,6', 'ra16', true);
+  s += roughness(X(REAR) - 14, Y(13, -1), '1,6', 'ra16', true);
 
   // View from the hub, 1:1.
   const Xe = 238;
@@ -307,6 +327,26 @@ function gear4Svg(): string {
   s += T(Xe, Ye - p.dae / 2 - 10, L('Изглед откъм главината (1:1)', 'View from the hub (1:1)'), { size: 3.4, cls: 'label' });
   s += leader(Xe + KEY3.b / 2, Ye - 13 - KEY3.t2 + 0.4, Xe + 26, Ye - 52, '8JS9 (±0,018)', 'hubkey');
   s += diaInside(Xe + 2.2, Ye - KEY3.t2 / 2, 13 + KEY3.t2 / 2, nb(26 + KEY3.t2, 1), { note: 'hubdepth', tol: ['+0,2', '0'], size: 2.4 });
+
+  // Tolerancing: the bore is datum A, the locating (rear) face datum B.
+  s += datum(X(REAR) + 10, Y(13, -1) + 0.4, 'A', 'down', 12, 'bore');
+  s += datum(X(REAR) + 0.4, Y(16.5), 'B', 'right', 3, 'datum');
+  const mid: P = [(p.tipToe[0] + p.tipHeel[0]) / 2, (p.tipToe[1] + p.tipHeel[1]) / 2];
+  // ISO 17485, grade 8 (tolerance diameter ≈ dₑ): pitch and runout of the teeth.
+  const g8 = 4;
+  const FpT = (0.025 * DE4 + 0.3 * MB + 19) * g8;
+  const fptT = (0.003 * DE4 + 0.3 * MB + 5) * g8;
+  const FrT = 0.8 * FpT;
+  const um = (v: number): string => nb(Math.round(v) / 1000, 3);
+  s += fcf(24, 56, 'runout', um(FrT), ['A'], { from: 'right', to: [X(mid[0]) - 0.4, Y(mid[1]) - 0.4], note: 'runout' });
+  s += fcf(X(REAR) + 4, Y(p.tipHeel[1], -1) + 3, 'perp', '0,015', ['A'], { from: 'top', knee: [X(REAR) + 7.8, Y(16.5, -1)], to: [X(REAR) + 0.6, Y(16.5, -1)], arrowAngle: Math.PI, note: 'perp' });
+  // Chordal tooth thickness at the outer end (virtual gear zᵥ = z / cos δ).
+  const zv = Z4 / Math.cos(DELTA4);
+  const dv = MB * zv;
+  const sn = (Math.PI * MB) / 2;
+  const sChord = dv * Math.sin(sn / dv);
+  const hChord = MB + (dv / 2) * (1 - Math.cos(sn / dv));
+  s += part3d(300, 140, 104, 58, 'gear4', lt(L('изглед за справка', 'reference view')));
 
   s += dataTable(300, 16, L('ДАННИ ЗА КОНИЧНОТО КОЛЕЛО', 'BEVEL GEAR DATA'), [
     [L('Модул (външен)', 'Outer module'), 'mₑ', nb(MB, 1), 'me'],
@@ -323,6 +363,10 @@ function gear4Svg(): string {
     [L('Степен на точност', 'Accuracy grade'), '—', '8 (ISO 17485)', 'grade'],
     [L('Спрегнато колело', 'Mating gear'), 'z₃', `${Z3} (EL-HB-002)`, 'mate'],
     [L('Ъгъл между осите', 'Shaft angle'), 'Σ', '90°', 'sigma'],
+    [L('Хордална дебелина (външна)', 'Chordal thickness (outer)'), 's̄ₑ', `${nb(sChord, 3)} −0,05/−0,10`, 'chordal'],
+    [L('Хордална височина', 'Chordal height'), 'h̄ₐₑ', nb(hChord, 3), 'chordal'],
+    [L('Единична стъпка', 'Single pitch'), 'fpt', `±${um(fptT)}`, 'iso1328'],
+    [L('Радиално биене', 'Radial runout'), 'Fr', um(FrT), 'iso1328'],
   ]);
 
   s += generalRoughness(372, 236);

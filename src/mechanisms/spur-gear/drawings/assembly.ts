@@ -4,7 +4,7 @@
  */
 import type { DrawingNote } from '../../../core/types';
 import { circle, f, leader, line, note, path, polyline, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
-import { N, notesBlock, vd } from './common';
+import { N, diaInside, hd, notesBlock, vd } from './common';
 import {
   A,
   BRG1,
@@ -309,6 +309,11 @@ export function assemblySvg(): string {
   s += balloon(10, BRG2B_Z, A + 18, X(22), bot);
   s += balloon(8, -3, A + 12, X(0), bot);
   s += balloon(6, -5, A + 36, X(-22), bot);
+
+  // Overall length of the base plate and the connecting dimensions of the shaft ends.
+  s += hd(X(-80), Y(A + left), X(75), Y(A + left), bot + 13, '155', { note: 'overall' });
+  s += diaInside(X(-62), Y(0), 10, 'ø20h9', { note: 'connect', size: 3 });
+  s += diaInside(X(57), Y(A), 12.5, 'ø25h9', { note: 'connect', size: 3 });
 
   // Kinematic diagram (ISO 3952, schematic, not to scale): motor, coupling, two shafts on bearings, the gear
   // pair (× = keyed to the shaft), coupling to the driven machine.

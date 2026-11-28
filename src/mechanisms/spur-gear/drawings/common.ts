@@ -1,6 +1,7 @@
 /** Shared helpers for the spur gear drawings (sheet mm, scale 2:1 unless stated). */
 import type { DrawingNote } from '../../../core/types';
-import { dim, f, line, note, roughness, text, ts, wrapText } from '../../../ui/svgdraw';
+import { dim, f, fitSize, line, note, roughness, text, ts, wrapText } from '../../../ui/svgdraw';
+import { iso1328 } from '../../../ui/gdt';
 
 export const S = 2; // drawing scale 2:1
 export const n = (bg: string): { bg: string } => ({ bg });
@@ -44,6 +45,42 @@ export function notesBlock(x: number, y: number, title: string, rows: { t: strin
     yy += lines.length * lh + 0.6;
   }
   return s;
+}
+
+/** Gear data table (ISO 1340): [name, symbol, value, note key] rows, fitted to the columns. */
+export function gearTable(tx: number, ty: number, rows: [string, string, string, string][], title = 'ДАННИ ЗА ЗЪБНОТО КОЛЕЛО'): string {
+  const cw = [56, 16, 30];
+  const rh = 6.6;
+  const tw = cw[0] + cw[1] + cw[2];
+  let t = `<rect class="tb-fill" x="${tx}" y="${ty}" width="${tw}" height="${f(rh * (rows.length + 1))}"/>`;
+  t += `<rect class="tbl-head" x="${tx}" y="${ty}" width="${tw}" height="${rh}"/>`;
+  t += `<rect class="thick" x="${tx}" y="${ty}" width="${tw}" height="${f(rh * (rows.length + 1))}"/>`;
+  t += text(tx + tw / 2, ty + 4.8, title, { size: 3, cls: 'label' });
+  rows.forEach((row, i) => {
+    const y = ty + rh * (i + 1);
+    let r = i % 2 ? `<rect class="tbl-band" x="${tx}" y="${f(y)}" width="${tw}" height="${rh}"/>` : '';
+    r += line(tx, y, tx + tw, y, 'thin');
+    r += text(tx + 1.2, y + 4.8, row[0], { anchor: 'start', size: fitSize(row[0], 2.7, cw[0] - 2.5) });
+    r += text(tx + cw[0] + cw[1] / 2, y + 4.8, row[1], { size: fitSize(row[1], 2.9, cw[1] - 2) });
+    r += text(tx + cw[0] + cw[1] + 1.2, y + 4.8, row[2], { anchor: 'start', size: fitSize(row[2], 2.7, cw[2] - 2.5) });
+    t += note(row[3], r, { x: tx, y, w: tw, h: rh });
+  });
+  t += line(tx + cw[0], ty + rh, tx + cw[0], ty + rh * (rows.length + 1), 'thin');
+  t += line(tx + cw[0] + cw[1], ty + rh, tx + cw[0] + cw[1], ty + rh * (rows.length + 1), 'thin');
+  return t;
+}
+
+/** Accuracy rows of ISO 1328 for grade q (values in mm). */
+export function accuracyRows(q: number, m: number, d: number, b: number): [string, string, string, string][] {
+  const v = iso1328(q, m, d, b);
+  const mm = (u: number): string => comma(u / 1000, 3);
+  return [
+    ['Единична стъпка', 'fpt', `±${mm(v.fpt)}`, 'iso1328'],
+    ['Натрупана стъпка', 'Fp', mm(v.Fp), 'iso1328'],
+    ['Профил', 'Fα', mm(v.Fa), 'iso1328'],
+    ['Линия на зъба', 'Fβ', mm(v.Fb), 'iso1328'],
+    ['Радиално биене', 'Fr', mm(v.Fr), 'iso1328'],
+  ];
 }
 
 export function generalRoughness(x: number, y: number): string {

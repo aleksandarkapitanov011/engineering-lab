@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { GDT_NOTES } from '../src/ui/gdt';
 import { spurGear } from '../src/mechanisms/spur-gear';
 import { FITS, fitResult } from '../src/mechanisms/spur-gear/drawings/fits';
 import { GEAR2_BODY } from '../src/mechanisms/spur-gear/drawings/gear2';
@@ -16,7 +17,8 @@ describe('technical drawings', () => {
       expect(svg).not.toMatch(/NaN|undefined|Infinity/);
       const keys = [...svg.matchAll(/data-note="([^"]+)"/g)].map((m) => m[1]);
       expect(keys.length).toBeGreaterThan(8);
-      const missing = [...new Set(keys)].filter((k) => !d.notes[k]);
+      // The drawing tab falls back to the shared explanations of the tolerancing elements.
+      const missing = [...new Set(keys)].filter((k) => !d.notes[k] && !GDT_NOTES[k]);
       expect(missing).toEqual([]);
       expect(svg).toContain(`${spurGear.drawings.indexOf(d) + 1}/6`);
     });

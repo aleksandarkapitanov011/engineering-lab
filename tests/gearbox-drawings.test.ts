@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { GDT_NOTES } from '../src/ui/gdt';
 import { helicalBevel } from '../src/mechanisms/helical-bevel';
 import { bevelProfile } from '../src/mechanisms/helical-bevel/drawings/derived';
 import { DELTA3, DELTA4, RE, Z3, Z4 } from '../src/mechanisms/helical-bevel/params';
@@ -21,7 +22,7 @@ describe('helical-bevel gearbox: drawings', () => {
         expect(svg).not.toMatch(/NaN|undefined|Infinity/);
         const keys = [...svg.matchAll(/data-note="([^"]+)"/g)].map((m) => m[1]);
         expect(keys.length).toBeGreaterThan(5);
-        expect([...new Set(keys)].filter((k) => !d.notes[k])).toEqual([]);
+        expect([...new Set(keys)].filter((k) => !d.notes[k] && !GDT_NOTES[k])).toEqual([]);
         expect(svg).toContain(`${sheets.indexOf(d) + 1}/7`);
         if (lang === 'en') expect(svg.replace(/<[^>]+>/g, ' ')).not.toMatch(/[Ѐ-ӿ]/);
         setLang('bg');

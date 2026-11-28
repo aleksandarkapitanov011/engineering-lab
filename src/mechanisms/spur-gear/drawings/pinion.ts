@@ -1,6 +1,7 @@
 /** Drawing of the pinion z1. */
 import type { DrawingNote } from '../../../core/types';
 import { gearOutline, spanMeasurement } from '../../../core/involute';
+import { part3d } from '../../../ui/svgdraw';
 import {
   circle,
   f,
@@ -15,7 +16,8 @@ import {
   text,
   titleBlock,
 } from '../../../ui/svgdraw';
-import { S, N, comma, diaInside, generalRoughness, hd, notesBlock, vd } from './common';
+import { S, N, accuracyRows, comma, diaInside, gearTable, generalRoughness, hd, notesBlock, vd } from './common';
+import { datum, fcf, FH, iso1328 } from '../../../ui/gdt';
 import { A, G1, KEY1, M, Z1, Z2 } from '../params';
 import { shaftNotes } from './shaft1';
 
@@ -181,11 +183,7 @@ export function pinionSvg(): string {
   s += diaInside(Xe + 3, Ye - (kTop - rb) / 2, (kTop + rb) / 2, '22,8', { note: 'hubdepth', tol: ['+0,1', '0'], size: 3 });
   s += text(Xe, Ye - ra - 22, 'Изглед отстрани', { size: 3.4, cls: 'label' });
 
-  // --- Gear data table ---
-  const tx = 306;
-  const ty = 16;
-  const cw = [56, 16, 30];
-  const rh = 6.6;
+  // --- Gear data table (with the accuracy tolerances of ISO 1328) ---
   const rows: [string, string, string, string][] = [
     ['Модул', 'm', '2', 'm'],
     ['Брой зъби', 'z', String(Z1), 'z'],
@@ -199,20 +197,17 @@ export function pinionSvg(): string {
     ['Спрегнато колело', 'z₂', String(Z2), 'mate'],
     ['Междуосие', 'a', `${A} ± 0,03`, 'a'],
   ];
-  const tw = cw[0] + cw[1] + cw[2];
-  let tbl = `<rect class="thick" x="${tx}" y="${ty}" width="${tw}" height="${f(rh * (rows.length + 1))}"/>`;
-  tbl += text(tx + tw / 2, ty + 4.6, 'ДАННИ ЗА ЗЪБНОТО КОЛЕЛО', { size: 3, cls: 'label' });
-  rows.forEach((row, i) => {
-    const y = ty + rh * (i + 1);
-    let r = line(tx, y, tx + tw, y, 'thin');
-    r += text(tx + 1.5, y + 4.6, row[0], { anchor: 'start', size: 2.7 });
-    r += text(tx + cw[0] + cw[1] / 2, y + 4.6, row[1], { size: 2.9 });
-    r += text(tx + cw[0] + cw[1] + 1.5, y + 4.6, row[2], { anchor: 'start', size: 2.7 });
-    tbl += note(row[3], r, { x: tx, y, w: tw, h: rh });
-  });
-  tbl += line(tx + cw[0], ty + rh, tx + cw[0], ty + rh * (rows.length + 1), 'thin');
-  tbl += line(tx + cw[0] + cw[1], ty + rh, tx + cw[0] + cw[1], ty + rh * (rows.length + 1), 'thin');
-  s += tbl;
+  s += gearTable(306, 16, [...rows, ...accuracyRows(7, M, G1.d, 20)]);
+
+  // Tolerancing: the bore is datum A.
+  {
+    const Fr = iso1328(7, M, G1.d, 20).Fr;
+    s += datum(x1 + 18, Ym + rb + 0.4, 'A', 'down', 12, 'bore');
+    s += fcf(Xe - FH / 2, Ye + ra + 8, 'runout', comma(Fr / 1000, 3), ['A'], { from: 'top', to: [Xe, Ye + ra + 0.6], note: 'runout' });
+    s += fcf(24, Ym + 30, 'runout', '0,02', ['A'], { from: 'right', to: [x0 - 0.6, Ym + 30 + FH / 2], arrowAngle: 0, note: 'axrunout' });
+    s += fcf(Xe + kb + 16, Ye - ra - 13.8, 'sym', '0,02', ['A'], { note: 'sym' }) + line(Xe + kb + 8.5, Ye - ra - 10, Xe + kb + 16, Ye - ra - 10, 'thin');
+    s += part3d(306, 134, 102, 56, 'pinion', 'изглед за справка');
+  }
 
   s += generalRoughness(372, 236);
   s += notesBlock(26, 206, 'ТЕХНИЧЕСКИ ИЗИСКВАНИЯ', [

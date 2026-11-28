@@ -1,8 +1,9 @@
 /** Drawing of the gear z2 (with web, lightening holes and hub), A3, section 2:1, end view 1:1. */
 import type { DrawingNote } from '../../../core/types';
 import { gearOutline, matingPhase, spanMeasurement } from '../../../core/involute';
-import { circle, f, leader, line, note, path, polyline, roughness, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
-import { S, N, comma, diaInside, generalRoughness, hd, notesBlock, vd } from './common';
+import { circle, f, leader, line, note, part3d, path, polyline, roughness, sheetEnd, sheetStart, text, titleBlock } from '../../../ui/svgdraw';
+import { S, N, accuracyRows, comma, diaInside, gearTable, generalRoughness, hd, notesBlock, vd } from './common';
+import { datum, fcf, FH, iso1328 } from '../../../ui/gdt';
 import { A, G2, KEY2, M, Z1, Z2 } from '../params';
 import { pinionNotes } from './pinion';
 
@@ -228,11 +229,7 @@ export function gear2Svg(): string {
   s += leader(Xe + kb1, Ye - kT1 + 0.4, Xe + 22, Ye - 62, '8JS9 (±0,018)', 'hubkey');
   s += diaInside(Xe + 2.2, Ye - (kT1 - r1) / 2, (kT1 + r1) / 2, '28,3', { note: 'hubdepth', tol: ['+0,2', '0'], size: 2.6 });
 
-  // --- Gear data table ---
-  const tx = 306;
-  const ty = 16;
-  const cw = [56, 16, 30];
-  const rh7 = 6.6;
+  // --- Gear data table (with the accuracy tolerances of ISO 1328) ---
   const rows: [string, string, string, string][] = [
     ['Модул', 'm', '2', 'm'],
     ['Брой зъби', 'z', String(Z2), 'z'],
@@ -246,20 +243,18 @@ export function gear2Svg(): string {
     ['Спрегнато колело', 'z₁', String(Z1), 'mate'],
     ['Междуосие', 'a', `${A} ± 0,03`, 'a'],
   ];
-  const tw = cw[0] + cw[1] + cw[2];
-  let tbl = `<rect class="thick" x="${tx}" y="${ty}" width="${tw}" height="${f(rh7 * (rows.length + 1))}"/>`;
-  tbl += text(tx + tw / 2, ty + 4.6, 'ДАННИ ЗА ЗЪБНОТО КОЛЕЛО', { size: 3, cls: 'label' });
-  rows.forEach((row, i) => {
-    const y = ty + rh7 * (i + 1);
-    let r = line(tx, y, tx + tw, y, 'thin');
-    r += text(tx + 1.5, y + 4.6, row[0], { anchor: 'start', size: 2.7 });
-    r += text(tx + cw[0] + cw[1] / 2, y + 4.6, row[1], { size: 2.9 });
-    r += text(tx + cw[0] + cw[1] + 1.5, y + 4.6, row[2], { anchor: 'start', size: 2.7 });
-    tbl += note(row[3], r, { x: tx, y, w: tw, h: rh7 });
-  });
-  tbl += line(tx + cw[0], ty + rh7, tx + cw[0], ty + rh7 * (rows.length + 1), 'thin');
-  tbl += line(tx + cw[0] + cw[1], ty + rh7, tx + cw[0] + cw[1], ty + rh7 * (rows.length + 1), 'thin');
-  s += tbl;
+  s += gearTable(306, 16, [...rows, ...accuracyRows(8, M, G2.d, 18)]);
+
+  // Tolerancing: the bore is datum A.
+  {
+    const Fr = iso1328(8, M, G2.d, 18).Fr;
+    s += datum(x1 + 12, Ym - rb - 0.4, 'A', 'up', 12, 'bore');
+    s += fcf(Xe - FH / 2, Ye + G2.da / 2 + 8, 'runout', comma(Fr / 1000, 3), ['A'], { from: 'top', to: [Xe, Ye + G2.da / 2 + 0.6], note: 'runout' });
+    s += fcf(24, Ym + 26, 'runout', '0,03', ['A'], { from: 'right', to: [x0 - 0.6, Ym + 26 + FH / 2], arrowAngle: 0, note: 'axrunout' });
+    // Symmetry of the hub keyway: the frame sits on the leader of its width (8JS9).
+    s += fcf(Xe + 22 - FH / 2, Ye - 77, 'sym', '0,02', ['A'], { note: 'sym' }) + line(Xe + 22, Ye - 77 + FH, Xe + 22, Ye - 62, 'thin');
+    s += part3d(306, 134, 102, 56, 'gear2', 'изглед за справка');
+  }
 
   s += generalRoughness(372, 236).replace('Ra 3,2', 'Ra 6,3');
   s += notesBlock(26, 238, 'ТЕХНИЧЕСКИ ИЗИСКВАНИЯ', [

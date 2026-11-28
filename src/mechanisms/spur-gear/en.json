@@ -1,4 +1,11 @@
 {
+ "изглед за справка": "reference view",
+ "{0}. Центрови отвори ISO {1}-A{2}/{3} в двата края.": "{0}. Centre holes ISO {1}-A{2}/{3} at both ends.",
+ "Единична стъпка": "Single pitch",
+ "Натрупана стъпка": "Cumulative pitch",
+ "Профил": "Profile",
+ "Линия на зъба": "Helix (flank line)",
+ "Радиално биене": "Radial runout",
  "+{0}° ({1} µm на b)": "+{0}° ({1} µm over b)",
  "-{0} mm (номинално {1})": "-{0} mm (nominal {1})",
  "-{0} µm (номинално {1})": "-{0} µm (nominal {1})",

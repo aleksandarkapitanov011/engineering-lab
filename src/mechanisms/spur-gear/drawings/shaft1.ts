@@ -8,6 +8,7 @@ import {
   note,
   path,
   polyline,
+  part3d,
   roughness,
   sheetEnd,
   sheetStart,
@@ -15,6 +16,7 @@ import {
   titleBlock,
 } from '../../../ui/svgdraw';
 import { S, N, diaInside, generalRoughness, hd, notesBlock, vd } from './common';
+import { centreHole, datum, detailMark, fcf, FH, undercutDetail } from '../../../ui/gdt';
 import { KEY1, SHAFT1_KEYWAY, SHAFT1_SEGMENTS } from '../params';
 
 // ---------------------------------------------------------------- Shaft 1
@@ -173,11 +175,10 @@ export function shaftSvg(): string {
 
   // Chamfer and fillet leaders.
   s += leader(X(0) + 1, Yc - r(0) + 1, X(0) - 8, Yc - 30, '1×45° (2×)', 'chamfer', false);
-  s += leader(X(58) - 0.4, Yc + r(1) + 0.4, X(58) - 14, Yc + 32, 'R0,5', 'fillet', false);
 
   // Roughness on surfaces.
-  s += roughness(X(52), Yc - r(1), '0,8', 'ra08');
-  s += roughness(X(88), Yc - r(3), '0,8', 'ra08');
+  s += roughness(X(51), Yc + r(1), '0,8', 'ra08', true);
+  s += roughness(X(90), Yc - r(3), '0,8', 'ra08');
   // Ra 1.6 on the shoulder face via a leader with reference line.
   {
     const fx = X(58);
@@ -221,6 +222,16 @@ export function shaftSvg(): string {
     s += note('ra32', inner, { x: Xs + kd + 4, y: Ys - R - 20, w: 26, h: 16 });
   }
 
+  // Tolerancing: A and B on the bearing seats; runouts relative to A–B; keyway centred.
+  s += datum(X(47.5), Yc + r(1) + 0.4, 'A', 'down', 5, 'datum') + datum(X(91), Yc + r(3) + 0.4, 'B', 'down', 5, 'datum');
+  s += fcf(X(71.5), Yc - 34, 'runout', '0,02', ['A-B'], { to: [X(71.5) + FH / 2, Yc - r(3) - 0.6], note: 'runout' });
+  s += fcf(X(4), Yc - 34, 'runout', '0,03', ['A-B'], { to: [X(4) + FH / 2, Yc - r(0) - 0.6], note: 'runout' });
+  s += fcf(X(26), Yc - 34, 'runout', '0,02', ['A-B'], { from: 'right', knee: [X(58) - 5, Yc - r(1) - 2], to: [X(58) - 0.6, Yc - r(1) - 2], arrowAngle: 0, note: 'axrunout' });
+  s += fcf(338, Ys + R + 20, 'sym', '0,02', ['A-B'], { from: 'top', knee: [341.8, Ys + R + 16], to: [Xs + kd + 1.2, Ys + kb + 0.4], note: 'sym' });
+  s += centreHole(X(0), Yc, S, -1, null, 'centre') + centreHole(X(120), Yc, S, 1, null, 'centre');
+  s += detailMark(X(64), Yc - r(3), 6, 'X', 'detail') + undercutDetail(282, 222, 8, 2, 'X', true);
+  s += part3d(24, 14, 96, 40, 'shaft1', 'изглед за справка');
+
   // General roughness, notes, title block.
   s += generalRoughness(372, 236);
   s += notesBlock(26, 200, 'ТЕХНИЧЕСКИ ИЗИСКВАНИЯ', [
@@ -229,6 +240,7 @@ export function shaftSvg(): string {
     { t: '3. Общи допуски ISO 2768-mK.', key: 'iso2768' },
     { t: '4. Сглобка с колелото: ø20 H7/k6.', key: 'fit' },
     { t: '5. Лагерни шийки: ø20 k6, лагери 6004.', key: 'bearingfit' },
+    { t: '6. Центрови отвори ISO 6411-A2/4,25 в двата края.', key: 'centre' },
   ]);
   s += titleBlock(410, 287, {
     name: 'Вал 1 (входящ)',

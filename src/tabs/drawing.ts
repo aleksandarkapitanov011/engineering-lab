@@ -7,6 +7,9 @@ import { lt, t } from '../i18n';
 import { h, capturePointer } from '../ui/dom';
 import { icons } from '../ui/icons';
 import { createSheet } from '../ui/sheet';
+import { thumbnail } from '../three/thumbs';
+import { GDT_NOTES } from '../ui/gdt';
+import * as THREE from 'three';
 
 const TAP_SLOP = 7;
 const NEAR_PX = 26;
@@ -96,6 +99,26 @@ function createDrawingTab(mech: Mechanism): TabView {
     chips.forEach((c, j) => c.setAttribute('aria-pressed', String(j === i)));
     if (!rendered.has(i)) rendered.set(i, mech.drawings[i].render());
     paper.innerHTML = rendered.get(i)!;
+    // 3D pictures of the parts, rendered from their models (cached like the catalogue pictures).
+    paper.querySelectorAll('image[data-part3d]').forEach((img) => {
+      const id = img.getAttribute('data-part3d')!;
+      const part = mech.parts.find((p) => p.id === id);
+      if (!part) return;
+      thumbnail(
+        `part:v1:${mech.id}:${id}:${img.getAttribute('width')}x${img.getAttribute('height')}`,
+        {
+          dir: [1, 0.62, 0.72],
+          build: (kit) => {
+            const g = new THREE.Group();
+            g.add(part.build({ materials: kit }));
+            return g;
+          },
+        },
+        (url) => img.setAttribute('href', url),
+        // Same proportions as the frame on the sheet, so the part fills it.
+        { w: 640, h: Math.max(120, Math.round((640 * Number(img.getAttribute('height'))) / Math.max(1, Number(img.getAttribute('width'))))) },
+      );
+    });
     const svg = paper.querySelector('svg')!;
     svgW = Number(svg.getAttribute('width'));
     svgH = Number(svg.getAttribute('height'));
@@ -107,7 +130,7 @@ function createDrawingTab(mech: Mechanism): TabView {
 
   const openNote = (g: Element): void => {
     const key = g.getAttribute('data-note')!;
-    const n = mech.drawings[current].notes[key];
+    const n = mech.drawings[current].notes[key] ?? GDT_NOTES[key];
     if (!n) return;
     activeNote?.classList.remove('active');
     paper.querySelectorAll(`[data-note="${key}"]`).forEach((e) => e.classList.add('active'));

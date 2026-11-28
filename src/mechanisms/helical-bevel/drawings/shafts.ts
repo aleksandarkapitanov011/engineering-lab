@@ -1,7 +1,8 @@
 /** Part drawings of the three shafts (scale 2:1). */
 import type { DrawingNote } from '../../../core/types';
 import { lt } from '../../../i18n';
-import { circle, dim, f, leader, line, sheetEnd, sheetStart, titleBlock } from '../../../ui/svgdraw';
+import { circle, dim, f, leader, line, part3d, sheetEnd, sheetStart, titleBlock } from '../../../ui/svgdraw';
+import { centreHole, datum, detailMark, fcf, FH, undercutDetail } from '../../../ui/gdt';
 import { BETA, D1, DE3, DELTA3, MB, MN, RE, BB, SHAFT1_KEYWAY, SHAFT2_KEYWAY, SHAFT3_KEYWAY, SHAFT3_OUT_KEYWAY, Z1, Z2, Z3, Z4, A1, B1 } from '../params';
 import { bevelProfile, HEL, steelMass } from './derived';
 import { BEVEL_NOTES, HELICAL_NOTES } from './gearNotes';
@@ -109,6 +110,24 @@ function shaft1Svg(): string {
     [L('Междуосие', 'Centre distance'), 'a', `${A1} ± 0,025`, 'a'],
   ]);
 
+  // Tolerancing: datums on the bearing seats, runouts relative to A–B, the keyway centred on the axis.
+  {
+    const yb = F.Y(10, -1);
+    s += datum(F.X(44.5), yb, 'A', 'down', 5, 'datum') + datum(F.X(116.5), yb, 'B', 'down', 5, 'datum');
+    const tipB = F.Y(HEL.da1 / 2, -1);
+    s += fcf(F.X(83) - FH / 2, tipB + 9, 'runout', '0,03', ['A-B'], { to: [F.X(83), tipB + 0.6], from: 'top', note: 'runout' });
+    const endT = F.Y(9);
+    s += fcf(F.X(152) - FH / 2, endT - 26, 'runout', '0,02', ['A-B'], { to: [F.X(152), endT - 0.6], note: 'runout' });
+    // The shoulders the bearings bear against.
+    s += fcf(F.X(54) + 0.6, F.Yc - 50, 'runout', '0,02', ['A-B'], { knee: [F.X(50), F.Y(11)], to: [F.X(54) - 0.6, F.Y(11)], arrowAngle: 0, note: 'axrunout' });
+    s += fcf(F.X(95) + 1, F.Yc - 50, 'runout', '0,02', ['A-B'], { from: 'right', knee: [F.X(118), F.Yc - 46.2], to: [F.X(114) + 0.6, F.Y(11)], arrowAngle: Math.PI, note: 'axrunout' });
+    // Keyway centred on the axis (in section A–A).
+    s += fcf(350, 186, 'sym', '0,02', ['A-B'], { from: 'top', knee: [353.8, 176], to: [372 + 12.2, 150 + 6.4], note: 'sym' });
+    s += centreHole(F.X(42), F.Yc, S, -1, null, 'centre') + centreHole(F.X(170), F.Yc, S, 1, null, 'centre');
+    s += detailMark(F.X(54), F.Y(10), 6, 'X', 'detail') + undercutDetail(298, 226, 8, 2, 'X');
+    s += part3d(24, 13, 92, 30, 'shaft1', lt(L('изглед за справка', 'reference view')));
+  }
+
   s += generalRoughness(372, 236);
   s += requirements(26, 206, [
     { t: L('Зъбите: циментиране и закаляване 58…62 HRC, дълбочина 0,6…0,9 mm, шлифовани.', 'Teeth: case-hardened 58…62 HRC, depth 0.6…0.9 mm, ground.'), key: 'case' },
@@ -116,6 +135,7 @@ function shaft1Svg(): string {
     { t: L('Общи допуски ISO 2768-mK.', 'General tolerances ISO 2768-mK.'), key: 'iso2768' },
     { t: L('Лагерни шийки ø20 k6 за лагери 6004.', 'Bearing seats ø20 k6 for bearings 6004.'), key: 'k6' },
     { t: L('Зъбите в изглед – по ISO 2203.', 'Teeth in the view to ISO 2203.'), key: 'gearteeth' },
+    { t: L('Центрови отвори ISO 6411-A2/4,25 в двата края.', 'Centre holes ISO 6411-A2/4.25 at both ends.'), key: 'centre' },
   ]);
   s += titleBlock(410, 287, {
     name: lt(L('Входящ вал-зъбно колело', 'Input pinion shaft')),
@@ -231,6 +251,27 @@ function shaft2Svg(): string {
     [L('Ъгъл между осите', 'Shaft angle'), 'Σ', '90°', 'sigma'],
   ], [44, 12, 34]);
 
+  // Tolerancing: A on the ø20 seat (bearing A), B on the ø30 seat (bearing B).
+  {
+    s += datum(F.X(116.5), F.Y(10, -1), 'A', 'down', 5, 'datum') + datum(F.X(44.5), F.Y(15, -1), 'B', 'down', 5, 'datum');
+    s += fcf(F.X(78) - FH / 2, F.Yc - 50, 'runout', '0,02', ['A-B'], { to: [F.X(78), F.Y(13) - 0.6], note: 'runout' });
+    // Teeth of the bevel pinion: runout of the face cone.
+    const mid: [number, number] = [(BP3.tipToe[0] + BP3.tipHeel[0]) / 2, (BP3.tipToe[1] + BP3.tipHeel[1]) / 2];
+    s += fcf(F.X(0) + 2, F.Yc - 50, 'runout', '0,04', ['A-B'], { from: 'right', to: [F.X(mid[0]) - 0.4, F.Y(mid[1]) - 0.5], note: 'runout' });
+    // Both shoulders the bearings bear against (faces towards +s).
+    s += fcf(F.X(94) + 4, F.Yc - 50, 'runout', '0,02', ['A-B'], {
+      knee: [F.X(118), F.Y(11)],
+      to: [F.X(114) + 0.6, F.Y(11)],
+      arrowAngle: Math.PI,
+      note: 'axrunout',
+    });
+    s += fcf(F.X(55) + 4, F.Yc - 50, 'runout', '0,02', ['A-B'], { knee: [F.X(46), F.Y(16.5)], to: [F.X(42) + 0.6, F.Y(16.5)], arrowAngle: Math.PI, note: 'axrunout' });
+    s += fcf(338, 202, 'sym', '0,02', ['A-B'], { from: 'top', knee: [341.8, 196], to: [362 + 18 + 1.2, 158 + 8 + 0.4], note: 'sym' });
+    s += centreHole(F.X(24), F.Yc, S, -1, null, 'centre') + centreHole(F.X(126), F.Yc, S, 1, null, 'centre');
+    s += detailMark(F.X(114), F.Y(10), 6, 'X', 'detail') + undercutDetail(292, 218, 8, 2, 'X', true);
+    s += part3d(24, 13, 66, 30, 'shaft2', lt(L('изглед за справка', 'reference view')));
+  }
+
   s += generalRoughness(372, 236);
   s += requirements(26, 206, [
     { t: L('Зъбите: циментиране и закаляване 58…62 HRC, дълбочина 0,6…0,9 mm.', 'Teeth: case-hardened 58…62 HRC, depth 0.6…0.9 mm.'), key: 'case' },
@@ -238,6 +279,7 @@ function shaft2Svg(): string {
     { t: L('Неуказани фаски 0,5×45°, радиуси R0,5.', 'Chamfers not shown 0.5×45°, radii R0.5.'), key: 'chamfer' },
     { t: L('Общи допуски ISO 2768-mK.', 'General tolerances ISO 2768-mK.'), key: 'iso2768' },
     { t: L('Лагери 6006 (ø30 k6) и 6004 (ø20 k6).', 'Bearings 6006 (ø30 k6) and 6004 (ø20 k6).'), key: 'k6' },
+    { t: L('Центрови отвори ISO 6411-A2/4,25 в двата края.', 'Centre holes ISO 6411-A2/4.25 at both ends.'), key: 'centre' },
   ]);
   s += titleBlock(410, 287, {
     name: lt(L('Междинен вал с конично колело', 'Intermediate shaft with bevel pinion')),
@@ -291,15 +333,31 @@ function shaft3Svg(): string {
   s += cutMarks(F.X(135), F.Yc, 11 * S, 'B');
   s += keySection(262, 194, S, 'A', { d: 26, b: 8, t1: 4, bTol: N9_8 }, { section: 'section', width: 'keyway', depth: 'depth' });
   s += keySection(346, 194, S, 'B', { d: 22, b: 6, t1: 3.5, bTol: N9_6 }, { section: 'section', width: 'keyway', depth: 'depth' });
-  s += chamferLeader(F, 8, 13, 10) + chamferLeader(F, 160, 11, 10);
+  // One label for both end chamfers (the left one would cover the runout frame of the gear seat).
+  s += leader(F.X(160) - 0.6, F.Y(11) + 0.6, F.X(160) + 10, F.Y(11) - 16, '1×45° (2×)', 'chamfer');
+
+  // Tolerancing: A on the ø30 seat (bearing A), B on the ø25 seat (bearing B).
+  {
+    s += datum(F.X(36.5), F.Y(15, -1), 'A', 'down', 5, 'datum') + datum(F.X(102.5), F.Y(12.5, -1), 'B', 'down', 5, 'datum');
+    s += fcf(F.X(12) - FH / 2, F.Yc - 40, 'runout', '0,02', ['A-B'], { to: [F.X(12), F.Y(13) - 0.6], note: 'runout' });
+    s += fcf(F.X(140) - FH / 2, F.Yc - 40, 'runout', '0,02', ['A-B'], { to: [F.X(140), F.Y(11) - 0.6], note: 'runout' });
+    s += fcf(F.X(49) + 4, F.Yc - 40, 'runout', '0,02', ['A-B'], { knee: [F.X(38), F.Y(15.5)], to: [F.X(34) + 0.6, F.Y(15.5)], arrowAngle: Math.PI, note: 'axrunout' });
+    s += fcf(F.X(84), F.Yc - 40, 'runout', '0,02', ['A-B'], { knee: [F.X(104), F.Y(13.2)], to: [F.X(100) + 0.6, F.Y(13.2)], arrowAngle: Math.PI, note: 'axrunout' });
+    s += fcf(240, 236, 'sym', '0,02', ['A-B'], { from: 'top', knee: [243.8, 232], to: [262 + 18 + 1.2, 194 + 8 + 0.4], note: 'sym' });
+    s += fcf(326, 232, 'sym', '0,02', ['A-B'], { from: 'top', knee: [329.8, 228], to: [346 + 15 + 1.2, 194 + 6 + 0.4], note: 'sym' });
+    s += centreHole(F.X(8), F.Yc, S, -1, null, 'centre') + centreHole(F.X(160), F.Yc, S, 1, null, 'centre');
+    s += detailMark(F.X(34), F.Y(15), 6, 'X', 'detail') + undercutDetail(150, 186, 6, 1, 'X', true);
+    s += part3d(24, 13, 80, 26, 'shaft3', lt(L('изглед за справка', 'reference view')));
+  }
 
   s += generalRoughness(372, 236);
-  s += requirements(26, 200, [
+  s += requirements(26, 220, [
     { t: L('Подобряване 28…32 HRC.', 'Quenched and tempered 28…32 HRC.'), key: 'qt' },
     { t: L('Неуказани фаски 0,5×45°, радиуси R0,5.', 'Chamfers not shown 0.5×45°, radii R0.5.'), key: 'chamfer' },
     { t: L('Общи допуски ISO 2768-mK.', 'General tolerances ISO 2768-mK.'), key: 'iso2768' },
     { t: L('Лагери 6006 (ø30 k6) и 6005 (ø25 k6).', 'Bearings 6006 (ø30 k6) and 6005 (ø25 k6).'), key: 'k6' },
     { t: L('Сглобка с колелото z₄: ø26 H7/k6.', 'Fit with gear z₄: ø26 H7/k6.'), key: 'seat' },
+    { t: L('Центрови отвори ISO 6411-A2/4,25 в двата края.', 'Centre holes ISO 6411-A2/4.25 at both ends.'), key: 'centre' },
   ]);
   s += titleBlock(410, 287, {
     name: lt(L('Изходящ вал', 'Output shaft')),

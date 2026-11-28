@@ -281,6 +281,16 @@ export function sheetStart(w = 420, hgt = 297): string {
   <rect class="thick frame" x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}"/>`;
 }
 
+/**
+ * A 3D picture of a part (`partId` of the mechanism) in a light frame with a caption, for reference
+ * next to the views. The drawing tab renders the picture from the part's 3D model.
+ */
+export function part3d(x: number, y: number, w: number, h: number, partId: string, caption: string): string {
+  return `<g class="part3d" data-note="part3d"><rect class="hit" x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"/><rect class="part3d-frame" x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="1.5"/>
+  <image data-part3d="${partId}" x="${f(x + 2)}" y="${f(y + 2)}" width="${f(w - 4)}" height="${f(h - 4 - ts(2.6) - 1)}" preserveAspectRatio="xMidYMid meet"/>
+  ${text(x + w / 2, y + h - 2, caption, { size: 2.6, cls: 'label tb-label' })}</g>`;
+}
+
 export function sheetEnd(): string {
   return '</svg>';
 }
